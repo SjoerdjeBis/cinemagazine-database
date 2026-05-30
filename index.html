@@ -702,18 +702,10 @@ function fmtDate(d) {
   return `${d.getDate()} ${NL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function jwUrl(title) {
-  const slug = title
-    .replace(/\s*\(\d{4}\)[^(]*$/, '')   // verwijder jaar-suffix
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')                      // decomponeer accenten
-    .replace(/[̀-ͯ]/g, '')       // verwijder accenttekens
-    .replace(/[^a-z0-9\s-]/g, '')         // verwijder leestekens
-    .trim()
-    .replace(/\s+/g, '-')                  // spaties → koppeltekens
-    .replace(/-+/g, '-');                  // dubbele koppeltekens samenvoegen
-  return `https://www.justwatch.com/nl/movie/${slug}`;
+function jwUrl(title, year) {
+  const clean = title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
+  const q = year ? `${clean} ${year}` : clean;
+  return `https://www.justwatch.com/nl/zoeken?q=${encodeURIComponent(q)}`;
 }
 
 function badgeClass(r) {
@@ -782,7 +774,7 @@ function render() {
     const cached  = imdbCache[imdbKey(r.title, r.filmYear)];
     const imdbCell = `<td class="col-imdb" id="imdb-${r.id}">${apiKey ? fmtImdb(cached) : ''}</td>`;
     const jwCell   = r.rating !== null && r.rating >= 4
-      ? `<td class="col-jw"><a href="${jwUrl(r.title)}" target="_blank" rel="noopener">
+      ? `<td class="col-jw"><a href="${jwUrl(r.title, r.filmYear)}" target="_blank" rel="noopener">
            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
            JustWatch
          </a></td>`
