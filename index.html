@@ -242,6 +242,22 @@
     }
     td.col-link a:hover { background: #d62839; color: white; }
 
+    td.col-jw a {
+      font-size: 0.78rem;
+      color: #1a3a6b;
+      border: 1px solid currentColor;
+      padding: 3px 9px;
+      border-radius: 4px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    td.col-jw a:hover { background: #1a3a6b; color: white; }
+    td.col-jw a svg { flex-shrink: 0; }
+
     /* ---- States ---- */
     .loading {
       text-align: center;
@@ -533,6 +549,12 @@ function fmtDate(d) {
   return `${d.getDate()} ${NL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+function jwUrl(title) {
+  // Strip jaar-suffix "(1972)" voor een schonere zoekopdracht
+  const clean = title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
+  return `https://www.justwatch.com/nl/zoeken?q=${encodeURIComponent(clean)}`;
+}
+
 function badgeClass(r) {
   if (r === null) return 'b-none';
   if (r >= 4.5)  return 'b-top';
@@ -582,6 +604,7 @@ function render() {
       ${th('filmYear',  'Filmjaar')}
       ${th('dateAdded', 'Datum toegevoegd')}
       <th>Recensie</th>
+      <th>JustWatch</th>
     </tr></thead>
     <tbody>`;
 
@@ -589,6 +612,12 @@ function render() {
     const bc = badgeClass(r.rating);
     const rv = r.rating !== null ? r.rating : '—';
     const fy = r.filmYear ?? '—';
+    const jwCell = r.rating !== null && r.rating >= 4
+      ? `<td class="col-jw"><a href="${jwUrl(r.title)}" target="_blank" rel="noopener">
+           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+           JustWatch
+         </a></td>`
+      : `<td class="col-jw"></td>`;
     html += `<tr>
       <td class="col-num">${i + 1}</td>
       <td class="col-title"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></td>
@@ -596,6 +625,7 @@ function render() {
       <td class="col-year">${fy}</td>
       <td class="col-date">${fmtDate(r.dateAdded)}</td>
       <td class="col-link"><a href="${esc(r.url)}" target="_blank" rel="noopener">Lees →</a></td>
+      ${jwCell}
     </tr>`;
   });
 
