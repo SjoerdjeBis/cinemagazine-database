@@ -192,8 +192,10 @@
     td.col-num {
       color: #ccc;
       font-size: 0.8rem;
-      width: 40px;
+      width: 1px;
+      white-space: nowrap;
       text-align: right;
+      padding: 11px 6px 11px 10px;
     }
     td.col-title a {
       color: #111;
@@ -290,10 +292,80 @@
       font-size: 0.9rem;
     }
 
+    /* ---- IMDb column ---- */
+    td.col-imdb {
+      text-align: center;
+      width: 58px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    thead th.col-imdb-h { text-align: center; }
+
+    /* ---- IMDb settings bar ---- */
+    .settings-bar {
+      background: #f7f7f7;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 10px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .settings-label {
+      font-size: 0.72rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    #f-imdb-key {
+      height: 30px;
+      padding: 4px 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      background: white;
+      outline: none;
+      min-width: 280px;
+    }
+    #f-imdb-key:focus { border-color: #f5c518; }
+    .settings-hint {
+      font-size: 0.78rem;
+      color: #bbb;
+    }
+    .settings-hint a { color: #aaa; }
+
+    /* ---- Pagination ---- */
+    #pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 16px;
+      border-top: 1px solid #f5f5f5;
+    }
+    #pagination button {
+      padding: 5px 12px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #555;
+      transition: all 0.15s;
+    }
+    #pagination button:hover:not(:disabled) { background: #d62839; border-color: #d62839; color: white; }
+    #pagination button:disabled { opacity: 0.35; cursor: default; }
+    #pagination span { font-size: 0.82rem; color: #999; padding: 0 6px; }
+
     /* ---- Responsive ---- */
     @media (max-width: 720px) {
       .container { padding: 12px; }
       .fg select, .fg input[type="text"] { min-width: 120px; }
+      #f-imdb-key { min-width: 200px; }
     }
   </style>
 </head>
@@ -377,6 +449,12 @@
     <button class="btn-reset" onclick="resetFilters()">✕ Wis filters</button>
   </div>
 
+  <div class="settings-bar">
+    <span class="settings-label">IMDb scores</span>
+    <input type="text" id="f-imdb-key" placeholder="OMDb API-sleutel invoeren…">
+    <span class="settings-hint">Gratis sleutel via <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">omdbapi.com</a></span>
+  </div>
+
   <div class="table-wrap">
     <div class="table-meta" id="table-meta">Laden…</div>
     <div id="table-body">
@@ -386,6 +464,7 @@
         <p class="progress" id="load-progress"></p>
       </div>
     </div>
+    <div id="pagination"></div>
   </div>
 
 </div>
@@ -393,10 +472,78 @@
 <script>
 'use strict';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+const PAGE_SIZE         = 100;
+const IMDB_CACHE_KEY    = 'cine_imdb';
+const UPDATES_CACHE_KEY = 'cine_updates';
+const UPDATES_TTL       = 3 * 24 * 60 * 60 * 1000; // 3 dagen
+
 // ─── State ───────────────────────────────────────────────────────────────────
-let reviews = [];
-let sortCol = 'dateAdded';
-let sortAsc = false;
+let reviews     = [];
+let sortCol     = 'dateAdded';
+let sortAsc     = false;
+let currentPage = 0;
+let imdbCache   = (() => {
+  try { return JSON.parse(localStorage.getItem(IMDB_CACHE_KEY) || '{}'); }
+  catch (_) { return {}; }
+})();
+
+// ─── IMDb helpers ─────────────────────────────────────────────────────────────
+function imdbKey(title, year) {
+  return `${title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim().toLowerCase()}|${year || ''}`;
+}
+
+function saveImdbCache() {
+  try { localStorage.setItem(IMDB_CACHE_KEY, JSON.stringify(imdbCache)); }
+  catch (_) {}
+}
+
+async function fetchImdbRating(title, year, apiKey) {
+  const key   = imdbKey(title, year);
+  if (imdbCache[key] !== undefined) return imdbCache[key];
+  const clean = title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
+  try {
+    const data = await (await fetch(
+      `https://www.omdbapi.com/?t=${encodeURIComponent(clean)}&y=${year || ''}&type=movie&apikey=${apiKey}`
+    )).json();
+    const val = data.Response === 'True' && data.imdbRating !== 'N/A'
+      ? parseFloat(data.imdbRating) : null;
+    imdbCache[key] = val;
+    saveImdbCache();
+    return val;
+  } catch (_) { return undefined; }
+}
+
+async function fetchImdbForPage(list, apiKey) {
+  for (const r of list) {
+    if (imdbCache[imdbKey(r.title, r.filmYear)] !== undefined) continue;
+    const val  = await fetchImdbRating(r.title, r.filmYear, apiKey);
+    const cell = document.getElementById(`imdb-${r.id}`);
+    if (cell) cell.innerHTML = fmtImdb(val);
+    await new Promise(res => setTimeout(res, 120)); // ~8 req/s
+  }
+}
+
+function fmtImdb(val) {
+  if (val === undefined) return '<span style="color:#ccc">·</span>';
+  if (val === null)      return '<span style="color:#ddd">—</span>';
+  return `<span style="font-weight:600;color:#333">${val}</span>`;
+}
+
+// ─── Updates-cache (3-daagse TTL) ────────────────────────────────────────────
+function getUpdatesCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(UPDATES_CACHE_KEY) || 'null');
+    if (c && Date.now() - c.ts < UPDATES_TTL) return c.reviews;
+  } catch (_) {}
+  return null;
+}
+
+function setUpdatesCache(reviews) {
+  try {
+    localStorage.setItem(UPDATES_CACHE_KEY, JSON.stringify({ ts: Date.now(), reviews }));
+  } catch (_) {}
+}
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -444,57 +591,56 @@ async function loadReviews() {
     const res = await fetch('data/reviews.json');
     if (res.ok) {
       const data = await res.json();
-      let reviews = data.reviews;
+      let base = data.reviews;
 
-      // Toon bijgewerkt-datum in header
       if (data.last_updated) {
         const d = new Date(data.last_updated);
         document.getElementById('last-updated').textContent =
           d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
       }
       document.getElementById('load-progress').textContent =
-        `${reviews.length} recensies geladen — nieuwe posts controleren…`;
+        `${base.length} recensies geladen — updates controleren…`;
 
-      // Haal posts op die nieuwer zijn dan de laatste update van het JSON-bestand
-      try {
-        const newPosts = await fetchNewSince(data.last_updated);
-        const existingIds = new Set(reviews.map(r => r.id));
-        const newParsed = newPosts
-          .filter(p => !existingIds.has(p.id))
-          .map(parsePostFromApi);
-
-        if (newParsed.length > 0) {
-          reviews = [...newParsed, ...reviews];
-          document.getElementById('last-updated').textContent =
-            new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-          document.getElementById('load-progress').textContent =
-            `${reviews.length} recensies (${newParsed.length} nieuw toegevoegd)`;
-        } else {
-          document.getElementById('load-progress').textContent =
-            `${reviews.length} recensies — up to date`;
-        }
-      } catch (_) {
-        document.getElementById('load-progress').textContent =
-          `${reviews.length} recensies geladen`;
+      // Gebruik 3-daagse cache; anders ophalen via API
+      let newParsed = getUpdatesCache();
+      if (newParsed === null) {
+        try {
+          const newPosts    = await fetchNewSince(data.last_updated);
+          const existingIds = new Set(base.map(r => r.id));
+          newParsed         = newPosts.filter(p => !existingIds.has(p.id)).map(parsePostFromApi);
+          setUpdatesCache(newParsed);
+        } catch (_) { newParsed = []; }
       }
 
-      return reviews;
+      if (newParsed.length > 0) {
+        const existingIds = new Set(base.map(r => r.id));
+        const fresh = newParsed.filter(r => !existingIds.has(r.id));
+        base = [...fresh, ...base];
+        document.getElementById('last-updated').textContent =
+          new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+        document.getElementById('load-progress').textContent =
+          `${base.length} recensies (${fresh.length} nieuw toegevoegd)`;
+      } else {
+        document.getElementById('load-progress').textContent =
+          `${base.length} recensies — up to date`;
+      }
+
+      return base;
     }
   } catch (_) { /* val terug op live API */ }
 
   // Fallback: live API (alleen 2025–2026)
   document.getElementById('load-progress').textContent =
     'Geen lokaal bestand — live ophalen van cinemagazine.nl…';
-  const base   = 'https://www.cinemagazine.nl/wp-json/wp/v2/posts';
-  const params = '_fields=id,title,date,link,content&per_page=100&after=2024-12-31T23:59:59&orderby=date&order=desc';
+  const apiBase = 'https://www.cinemagazine.nl/wp-json/wp/v2/posts';
+  const params  = '_fields=id,title,date,link,content&per_page=100&after=2024-12-31T23:59:59&orderby=date&order=desc';
   let page = 1, totalPages = 1;
   const all = [];
   do {
-    const res = await fetch(`${base}?${params}&page=${page}`);
+    const res = await fetch(`${apiBase}?${params}&page=${page}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1', 10);
-    const batch = await res.json();
-    all.push(...batch);
+    all.push(...await res.json());
     document.getElementById('load-progress').textContent =
       `Pagina ${page} van ${totalPages} — ${all.length} posts geladen`;
     page++;
@@ -582,33 +728,40 @@ function th(col, label) {
 }
 
 function render() {
-  const list = getVisible();
+  const list       = getVisible();
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  if (currentPage >= totalPages) currentPage = 0;
+  const pageStart  = currentPage * PAGE_SIZE;
+  const pageList   = list.slice(pageStart, pageStart + PAGE_SIZE);
 
   // Stats
-  const rated = reviews.filter(r => r.rating !== null);
-  const avg = rated.length
-    ? (rated.reduce((s, r) => s + r.rating, 0) / rated.length).toFixed(1)
-    : '—';
+  const rated   = reviews.filter(r => r.rating !== null);
+  const avg     = rated.length
+    ? (rated.reduce((s, r) => s + r.rating, 0) / rated.length).toFixed(1) : '—';
   const highest = rated.length ? Math.max(...rated.map(r => r.rating)) : '—';
   document.getElementById('s-total').textContent = reviews.length;
   document.getElementById('s-shown').textContent = list.length;
-  document.getElementById('s-avg').textContent  = avg;
-  document.getElementById('s-high').textContent = highest;
+  document.getElementById('s-avg').textContent   = avg;
+  document.getElementById('s-high').textContent  = highest;
   document.getElementById('table-meta').textContent =
-    `${list.length} van ${reviews.length} recensies`;
+    `${list.length} van ${reviews.length} recensies` +
+    (totalPages > 1 ? ` — pagina ${currentPage + 1} van ${totalPages}` : '');
 
-  const body = document.getElementById('table-body');
+  const body   = document.getElementById('table-body');
+  const apiKey = localStorage.getItem('cine_imdb_key') || '';
 
   if (!list.length) {
     body.innerHTML = '<div class="state-empty">Geen films gevonden met deze filters.</div>';
+    renderPagination(0);
     return;
   }
 
   let html = `<table>
     <thead><tr>
-      <th data-col="">Nr.</th>
+      <th class="col-num" data-col="">Nr.</th>
       ${th('title',     'Filmtitel')}
-      ${th('rating',    'Waardering')}
+      ${th('rating',    'Cinemagazine')}
+      <th class="col-imdb-h">IMDb</th>
       ${th('filmYear',  'Filmjaar')}
       ${th('dateAdded', 'Datum toegevoegd')}
       <th>Recensie</th>
@@ -616,20 +769,23 @@ function render() {
     </tr></thead>
     <tbody>`;
 
-  list.forEach((r, i) => {
-    const bc = badgeClass(r.rating);
-    const rv = r.rating !== null ? r.rating : '—';
-    const fy = r.filmYear ?? '—';
-    const jwCell = r.rating !== null && r.rating >= 4
+  pageList.forEach((r, i) => {
+    const bc      = badgeClass(r.rating);
+    const rv      = r.rating !== null ? r.rating : '—';
+    const fy      = r.filmYear ?? '—';
+    const cached  = imdbCache[imdbKey(r.title, r.filmYear)];
+    const imdbCell = `<td class="col-imdb" id="imdb-${r.id}">${apiKey ? fmtImdb(cached) : ''}</td>`;
+    const jwCell   = r.rating !== null && r.rating >= 4
       ? `<td class="col-jw"><a href="${jwUrl(r.title)}" target="_blank" rel="noopener">
            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
            JustWatch
          </a></td>`
       : `<td class="col-jw"></td>`;
     html += `<tr>
-      <td class="col-num">${i + 1}</td>
+      <td class="col-num">${pageStart + i + 1}</td>
       <td class="col-title"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></td>
       <td class="col-rating"><span class="badge ${bc}">${rv}</span></td>
+      ${imdbCell}
       <td class="col-year">${fy}</td>
       <td class="col-date">${fmtDate(r.dateAdded)}</td>
       <td class="col-link"><a href="${esc(r.url)}" target="_blank" rel="noopener">Lees →</a></td>
@@ -640,31 +796,48 @@ function render() {
   html += '</tbody></table>';
   body.innerHTML = html;
 
-  // Attach sort listeners to headers
   body.querySelectorAll('thead th[data-col]').forEach(el => {
     const col = el.getAttribute('data-col');
     if (!col) return;
     el.style.cursor = 'pointer';
     el.onclick = () => setSort(col);
   });
+
+  renderPagination(totalPages);
+  if (apiKey) fetchImdbForPage(pageList, apiKey);
+}
+
+// ─── Pagination ───────────────────────────────────────────────────────────────
+function renderPagination(totalPages) {
+  const el = document.getElementById('pagination');
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <button onclick="gotoPage(0)" ${currentPage === 0 ? 'disabled' : ''}>«</button>
+    <button onclick="gotoPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>‹ Vorige</button>
+    <span>Pagina ${currentPage + 1} van ${totalPages}</span>
+    <button onclick="gotoPage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Volgende ›</button>
+    <button onclick="gotoPage(${totalPages - 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>»</button>`;
+}
+
+function gotoPage(n) {
+  currentPage = n;
+  render();
+  document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ─── Sorting ─────────────────────────────────────────────────────────────────
 function setSort(col) {
-  if (sortCol === col) {
-    sortAsc = !sortAsc;
-  } else {
-    sortCol = col;
-    sortAsc = col === 'title';
-  }
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = col === 'title'; }
+  currentPage = 0;
   render();
 }
 
 // ─── Populate filter dropdowns ────────────────────────────────────────────────
 function populateFilters() {
-  // Months added
   const months = [...new Set(reviews.map(r => r.dateAdded.toISOString().slice(0, 7)))].sort().reverse();
-  const mSel = document.getElementById('f-month');
+  const mSel   = document.getElementById('f-month');
   months.forEach(m => {
     const [y, mo] = m.split('-');
     const o = document.createElement('option');
@@ -679,18 +852,29 @@ function resetFilters() {
   ['f-search','f-year-from','f-year-to','f-month','f-min','f-max'].forEach(id =>
     document.getElementById(id).value = ''
   );
+  currentPage = 0;
   render();
 }
 
 ['f-month','f-min','f-max'].forEach(id =>
-  document.getElementById(id).addEventListener('change', render)
+  document.getElementById(id).addEventListener('change', () => { currentPage = 0; render(); })
 );
 ['f-search','f-year-from','f-year-to'].forEach(id =>
-  document.getElementById(id).addEventListener('input', render)
+  document.getElementById(id).addEventListener('input', () => { currentPage = 0; render(); })
 );
+
+document.getElementById('f-imdb-key').addEventListener('input', e => {
+  const key = e.target.value.trim();
+  if (key) localStorage.setItem('cine_imdb_key', key);
+  else localStorage.removeItem('cine_imdb_key');
+  render();
+});
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 (async () => {
+  const savedKey = localStorage.getItem('cine_imdb_key') || '';
+  if (savedKey) document.getElementById('f-imdb-key').value = savedKey;
+
   try {
     const raw = await loadReviews();
     reviews = raw.map(parseReview);
