@@ -152,10 +152,15 @@
       font-size: 0.8rem;
       color: #aaa;
     }
+    #table-body {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
 
     /* ---- Table ---- */
     table {
       width: 100%;
+      min-width: 600px;
       border-collapse: collapse;
     }
     thead th {
@@ -272,9 +277,6 @@
     /* ---- Responsive ---- */
     @media (max-width: 720px) {
       .container { padding: 12px; }
-      td.col-link, td.col-num { display: none; }
-      td.col-title a::after { content: " ↗"; font-size: 0.75rem; }
-      thead th:last-child { display: none; }
       .fg select, .fg input[type="text"] { min-width: 120px; }
     }
   </style>
@@ -381,12 +383,53 @@ let sortCol = 'dateAdded';
 let sortAsc = false;
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
+
+// Haal posts op van de live API die nieuwer zijn dan `since` (ISO 8601 string)
+async function fetchNewSince(since) {
+  const base = 'https://www.cinemagazine.nl/wp-json/wp/v2/posts';
+  // Strip timezone suffix zodat WordPress de parameter accepteert
+  const after = since.replace(/\+00:00$/, '').replace(/Z$/, '');
+  const params = `_fields=id,title,date,link,content&per_page=100&after=${encodeURIComponent(after)}&orderby=date&order=desc`;
+  let page = 1, totalPages = 1;
+  const all = [];
+  do {
+    const res = await fetch(`${base}?${params}&page=${page}`);
+    if (!res.ok) break;
+    totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1', 10);
+    const batch = await res.json();
+    all.push(...batch);
+    document.getElementById('load-progress').textContent =
+      `Nieuwe posts ophalen… ${all.length} gevonden`;
+    page++;
+  } while (page <= totalPages);
+  return all;
+}
+
+// Parse een ruwe WordPress API post naar het interne formaat
+function parsePostFromApi(post) {
+  const ta = document.createElement('textarea');
+  ta.innerHTML = post.title.rendered.replace(/<[^>]+>/g, '');
+  const title = ta.value;
+  const yearMatch   = title.match(/\((\d{4})\)[^(]*$/);
+  const ratingMatch = (post.content?.rendered || '').match(/Waardering[:\s]+([0-9]+[.,]?[0-9]*)/);
+  return {
+    id:       post.id,
+    title,
+    url:      post.link,
+    date:     post.date,
+    filmYear: yearMatch   ? parseInt(yearMatch[1], 10)                 : null,
+    rating:   ratingMatch ? parseFloat(ratingMatch[1].replace(',', '.')) : null,
+  };
+}
+
 async function loadReviews() {
   // Probeer eerst het lokale JSON-bestand (gegenereerd door scraper.py)
   try {
     const res = await fetch('data/reviews.json');
     if (res.ok) {
       const data = await res.json();
+      let reviews = data.reviews;
+
       // Toon bijgewerkt-datum in header
       if (data.last_updated) {
         const d = new Date(data.last_updated);
@@ -394,8 +437,32 @@ async function loadReviews() {
           d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
       }
       document.getElementById('load-progress').textContent =
-        `${data.reviews.length} recensies geladen uit lokaal bestand`;
-      return data.reviews;
+        `${reviews.length} recensies geladen — nieuwe posts controleren…`;
+
+      // Haal posts op die nieuwer zijn dan de laatste update van het JSON-bestand
+      try {
+        const newPosts = await fetchNewSince(data.last_updated);
+        const existingIds = new Set(reviews.map(r => r.id));
+        const newParsed = newPosts
+          .filter(p => !existingIds.has(p.id))
+          .map(parsePostFromApi);
+
+        if (newParsed.length > 0) {
+          reviews = [...newParsed, ...reviews];
+          document.getElementById('last-updated').textContent =
+            new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+          document.getElementById('load-progress').textContent =
+            `${reviews.length} recensies (${newParsed.length} nieuw toegevoegd)`;
+        } else {
+          document.getElementById('load-progress').textContent =
+            `${reviews.length} recensies — up to date`;
+        }
+      } catch (_) {
+        document.getElementById('load-progress').textContent =
+          `${reviews.length} recensies geladen`;
+      }
+
+      return reviews;
     }
   } catch (_) { /* val terug op live API */ }
 
@@ -416,16 +483,7 @@ async function loadReviews() {
       `Pagina ${page} van ${totalPages} — ${all.length} posts geladen`;
     page++;
   } while (page <= totalPages);
-  return all.map(post => {
-    const title = (() => { const ta = document.createElement('textarea'); ta.innerHTML = post.title.rendered.replace(/<[^>]+>/g,''); return ta.value; })();
-    const yearMatch   = title.match(/\((\d{4})\)[^(]*$/);
-    const ratingMatch = (post.content?.rendered||'').match(/Waardering[:\s]+([0-9]+[.,]?[0-9]*)/);
-    return {
-      id: post.id, title, url: post.link, date: post.date,
-      filmYear: yearMatch   ? parseInt(yearMatch[1],   10)                      : null,
-      rating:   ratingMatch ? parseFloat(ratingMatch[1].replace(',', '.'))      : null,
-    };
-  });
+  return all.map(parsePostFromApi);
 }
 
 // ─── Parse ────────────────────────────────────────────────────────────────────
