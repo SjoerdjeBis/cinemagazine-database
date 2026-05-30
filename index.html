@@ -332,11 +332,17 @@
       min-width: 280px;
     }
     #f-imdb-key:focus { border-color: #f5c518; }
+    #f-imdb-key.key-ok { border-color: #5cb85c; background: #f6fff6; }
     .settings-hint {
       font-size: 0.78rem;
       color: #bbb;
     }
     .settings-hint a { color: #aaa; }
+    #imdb-status {
+      font-size: 0.78rem;
+      color: #5cb85c;
+      font-weight: 600;
+    }
 
     /* ---- Pagination ---- */
     #pagination {
@@ -452,6 +458,7 @@
   <div class="settings-bar">
     <span class="settings-label">IMDb scores</span>
     <input type="text" id="f-imdb-key" placeholder="OMDb API-sleutel invoeren…">
+    <span id="imdb-status"></span>
     <span class="settings-hint">Gratis sleutel via <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">omdbapi.com</a></span>
   </div>
 
@@ -525,8 +532,8 @@ async function fetchImdbForPage(list, apiKey) {
 }
 
 function fmtImdb(val) {
-  if (val === undefined) return '<span style="color:#ccc">·</span>';
-  if (val === null)      return '<span style="color:#ddd">—</span>';
+  if (val === undefined) return '<span style="color:#bbb;font-size:0.75rem">laden…</span>';
+  if (val === null)      return '<span style="color:#ccc">—</span>';
   return `<span style="font-weight:600;color:#333">${val}</span>`;
 }
 
@@ -764,7 +771,6 @@ function render() {
       <th class="col-imdb-h">IMDb</th>
       ${th('filmYear',  'Filmjaar')}
       ${th('dateAdded', 'Datum toegevoegd')}
-      <th>Recensie</th>
       <th>JustWatch</th>
     </tr></thead>
     <tbody>`;
@@ -788,7 +794,6 @@ function render() {
       ${imdbCell}
       <td class="col-year">${fy}</td>
       <td class="col-date">${fmtDate(r.dateAdded)}</td>
-      <td class="col-link"><a href="${esc(r.url)}" target="_blank" rel="noopener">Lees →</a></td>
       ${jwCell}
     </tr>`;
   });
@@ -863,17 +868,36 @@ function resetFilters() {
   document.getElementById(id).addEventListener('input', () => { currentPage = 0; render(); })
 );
 
-document.getElementById('f-imdb-key').addEventListener('input', e => {
-  const key = e.target.value.trim();
-  if (key) localStorage.setItem('cine_imdb_key', key);
-  else localStorage.removeItem('cine_imdb_key');
+function applyImdbKey(key) {
+  key = key.trim();
+  const input  = document.getElementById('f-imdb-key');
+  const status = document.getElementById('imdb-status');
+  if (key) {
+    localStorage.setItem('cine_imdb_key', key);
+    input.classList.add('key-ok');
+    status.textContent = '✓ Scores worden geladen…';
+  } else {
+    localStorage.removeItem('cine_imdb_key');
+    input.classList.remove('key-ok');
+    status.textContent = '';
+  }
   render();
+}
+
+document.getElementById('f-imdb-key').addEventListener('input',  e => applyImdbKey(e.target.value));
+document.getElementById('f-imdb-key').addEventListener('change', e => applyImdbKey(e.target.value));
+document.getElementById('f-imdb-key').addEventListener('keydown', e => {
+  if (e.key === 'Enter') applyImdbKey(e.target.value);
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 (async () => {
   const savedKey = localStorage.getItem('cine_imdb_key') || '';
-  if (savedKey) document.getElementById('f-imdb-key').value = savedKey;
+  if (savedKey) {
+    document.getElementById('f-imdb-key').value = savedKey;
+    document.getElementById('f-imdb-key').classList.add('key-ok');
+    document.getElementById('imdb-status').textContent = '✓ Scores worden geladen…';
+  }
 
   try {
     const raw = await loadReviews();
