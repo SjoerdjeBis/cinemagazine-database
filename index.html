@@ -307,7 +307,7 @@
       border: 1px solid #e8e8e8;
       border-radius: 8px;
       padding: 10px 20px;
-      margin-bottom: 20px;
+      margin-top: 20px;
       display: flex;
       align-items: center;
       gap: 14px;
@@ -455,13 +455,6 @@
     <button class="btn-reset" onclick="resetFilters()">✕ Wis filters</button>
   </div>
 
-  <div class="settings-bar">
-    <span class="settings-label">IMDb scores</span>
-    <input type="text" id="f-imdb-key" placeholder="OMDb API-sleutel invoeren…">
-    <span id="imdb-status"></span>
-    <span class="settings-hint">Gratis sleutel via <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">omdbapi.com</a></span>
-  </div>
-
   <div class="table-wrap">
     <div class="table-meta" id="table-meta">Laden…</div>
     <div id="table-body">
@@ -472,6 +465,13 @@
       </div>
     </div>
     <div id="pagination"></div>
+  </div>
+
+  <div class="settings-bar">
+    <span class="settings-label">IMDb scores</span>
+    <input type="text" id="f-imdb-key" placeholder="OMDb API-sleutel invoeren…">
+    <span id="imdb-status"></span>
+    <span class="settings-hint">Gratis sleutel via <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">omdbapi.com</a></span>
   </div>
 
 </div>
