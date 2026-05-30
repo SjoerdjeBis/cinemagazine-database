@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cinemagazine Filmwaarderingen</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f0f0;
+      color: #222;
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    header {
+      background: #111;
+      color: white;
+      padding: 28px 0 24px;
+    }
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    header h1 em {
+      color: #d62839;
+      font-style: normal;
+    }
+    header p {
+      margin-top: 6px;
+      color: #999;
+      font-size: 0.875rem;
+    }
+    header p a {
+      color: #d62839;
+      text-decoration: none;
+    }
+    header p a:hover { text-decoration: underline; }
+
+    /* ---- Layout ---- */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* ---- Stats ---- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .stat-card .val {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #111;
+      line-height: 1.1;
+    }
+    .stat-card .lbl {
+      font-size: 0.75rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 4px;
+    }
+
+    /* ---- Filters ---- */
+    .filters {
+      background: white;
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .fg {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .fg label {
+      font-size: 0.72rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .fg select,
+    .fg input[type="text"],
+    .fg input[type="number"] {
+      padding: 7px 11px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: #fafafa;
+      outline: none;
+      transition: border-color 0.15s;
+      min-width: 150px;
+      height: 35px;
+      box-sizing: border-box;
+    }
+    .fg-rating-range select { min-width: 90px; }
+    .fg-year-range input[type="number"] { min-width: unset; width: 78px; }
+    .fg select:focus,
+    .fg input[type="text"]:focus,
+    .fg input[type="number"]:focus { border-color: #d62839; }
+    .fg.fg-search { flex: 1; min-width: 200px; }
+    .fg.fg-search input { width: 100%; }
+    .btn-reset {
+      padding: 0 16px;
+      height: 35px;
+      background: transparent;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #666;
+      transition: all 0.15s;
+      align-self: flex-end;
+      white-space: nowrap;
+    }
+    .btn-reset:hover { background: #d62839; border-color: #d62839; color: white; }
+
+    /* ---- Table wrapper ---- */
+    .table-wrap {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .table-meta {
+      padding: 10px 18px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+
+    /* ---- Table ---- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      background: #111;
+      color: #bbb;
+      padding: 11px 16px;
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { background: #222; color: white; }
+    thead th.active { color: #d62839; }
+    .sort-arrow { margin-left: 4px; opacity: 0.4; }
+    thead th.active .sort-arrow { opacity: 1; }
+
+    tbody tr {
+      border-bottom: 1px solid #f5f5f5;
+      transition: background 0.1s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+
+    td { padding: 11px 16px; }
+
+    td.col-num {
+      color: #ccc;
+      font-size: 0.8rem;
+      width: 40px;
+      text-align: right;
+    }
+    td.col-title a {
+      color: #111;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    td.col-title a:hover { color: #d62839; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 38px;
+      height: 26px;
+      border-radius: 5px;
+      font-weight: 700;
+      font-size: 0.875rem;
+      color: white;
+      padding: 0 6px;
+    }
+    .b-top  { background: #1a7a3c; }
+    .b-high { background: #5cb85c; }
+    .b-mid  { background: #e67e22; }
+    .b-low  { background: #c0392b; }
+    .b-none { background: #ddd; color: #999; font-weight: 400; font-size: 0.8rem; }
+
+    td.col-year {
+      color: #888;
+      font-size: 0.85rem;
+    }
+    td.col-date {
+      color: #aaa;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+    td.col-link a {
+      font-size: 0.78rem;
+      color: #d62839;
+      border: 1px solid currentColor;
+      padding: 3px 9px;
+      border-radius: 4px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    td.col-link a:hover { background: #d62839; color: white; }
+
+    /* ---- States ---- */
+    .loading {
+      text-align: center;
+      padding: 64px 24px;
+      color: #aaa;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #eee;
+      border-top-color: #d62839;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { font-size: 0.9rem; }
+    .loading .progress { font-size: 0.8rem; margin-top: 8px; color: #bbb; }
+
+    .state-error {
+      text-align: center;
+      padding: 48px;
+      color: #c0392b;
+      font-size: 0.9rem;
+    }
+    .state-empty {
+      text-align: center;
+      padding: 48px;
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 720px) {
+      .container { padding: 12px; }
+      td.col-link, td.col-num { display: none; }
+      td.col-title a::after { content: " ↗"; font-size: 0.75rem; }
+      thead th:last-child { display: none; }
+      .fg select, .fg input[type="text"] { min-width: 120px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>Cinemagazine <em>Filmwaarderingen</em></h1>
+    <p>Alle filmrecensies van <a href="https://www.cinemagazine.nl" target="_blank" rel="noopener">cinemagazine.nl</a>
+      — bijgewerkt op <span id="last-updated">—</span></p>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="val" id="s-total">—</div>
+      <div class="lbl">Recensies totaal</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="s-shown">—</div>
+      <div class="lbl">Getoond</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="s-avg">—</div>
+      <div class="lbl">Gemiddelde waardering</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="s-high">—</div>
+      <div class="lbl">Hoogste waardering</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="fg fg-search">
+      <label>Zoek op titel</label>
+      <input type="text" id="f-search" placeholder="Bijv. The Fly, Dune…">
+    </div>
+    <div class="fg fg-year-range">
+      <label>Filmjaar</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="f-year-from" placeholder="Van" min="1900" max="2099" style="width:80px;">
+        <span style="color:#aaa;font-size:0.8rem;">—</span>
+        <input type="number" id="f-year-to" placeholder="Tot" min="1900" max="2099" style="width:80px;">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Datum toegevoegd</label>
+      <select id="f-month"><option value="">Alle maanden</option></select>
+    </div>
+    <div class="fg fg-rating-range">
+      <label>Waardering</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+      <select id="f-min" title="Minimale waardering">
+        <option value="">Min</option>
+        <option value="1">≥ 1</option>
+        <option value="1.5">≥ 1.5</option>
+        <option value="2">≥ 2</option>
+        <option value="2.5">≥ 2.5</option>
+        <option value="3">≥ 3</option>
+        <option value="3.5">≥ 3.5</option>
+        <option value="4">≥ 4</option>
+        <option value="4.5">≥ 4.5</option>
+        <option value="5">= 5</option>
+      </select>
+      <span style="color:#aaa;font-size:0.8rem;">—</span>
+      <select id="f-max" title="Maximale waardering">
+        <option value="">Alle</option>
+        <option value="1">≤ 1</option>
+        <option value="1.5">≤ 1.5</option>
+        <option value="2">≤ 2</option>
+        <option value="2.5">≤ 2.5</option>
+        <option value="3">≤ 3</option>
+        <option value="3.5">≤ 3.5</option>
+        <option value="4">≤ 4</option>
+        <option value="4.5">≤ 4.5</option>
+      </select>
+      </div>
+    </div>
+    <button class="btn-reset" onclick="resetFilters()">✕ Wis filters</button>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-meta" id="table-meta">Laden…</div>
+    <div id="table-body">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Recensies ophalen van cinemagazine.nl…</p>
+        <p class="progress" id="load-progress"></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let reviews = [];
+let sortCol = 'dateAdded';
+let sortAsc = false;
+
+// ─── Fetch ────────────────────────────────────────────────────────────────────
+async function loadReviews() {
+  // Probeer eerst het lokale JSON-bestand (gegenereerd door scraper.py)
+  try {
+    const res = await fetch('data/reviews.json');
+    if (res.ok) {
+      const data = await res.json();
+      // Toon bijgewerkt-datum in header
+      if (data.last_updated) {
+        const d = new Date(data.last_updated);
+        document.getElementById('last-updated').textContent =
+          d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+      document.getElementById('load-progress').textContent =
+        `${data.reviews.length} recensies geladen uit lokaal bestand`;
+      return data.reviews;
+    }
+  } catch (_) { /* val terug op live API */ }
+
+  // Fallback: live API (alleen 2025–2026)
+  document.getElementById('load-progress').textContent =
+    'Geen lokaal bestand — live ophalen van cinemagazine.nl…';
+  const base   = 'https://www.cinemagazine.nl/wp-json/wp/v2/posts';
+  const params = '_fields=id,title,date,link,content&per_page=100&after=2024-12-31T23:59:59&orderby=date&order=desc';
+  let page = 1, totalPages = 1;
+  const all = [];
+  do {
+    const res = await fetch(`${base}?${params}&page=${page}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1', 10);
+    const batch = await res.json();
+    all.push(...batch);
+    document.getElementById('load-progress').textContent =
+      `Pagina ${page} van ${totalPages} — ${all.length} posts geladen`;
+    page++;
+  } while (page <= totalPages);
+  return all.map(post => {
+    const title = (() => { const ta = document.createElement('textarea'); ta.innerHTML = post.title.rendered.replace(/<[^>]+>/g,''); return ta.value; })();
+    const yearMatch   = title.match(/\((\d{4})\)[^(]*$/);
+    const ratingMatch = (post.content?.rendered||'').match(/Waardering[:\s]+([0-9]+[.,]?[0-9]*)/);
+    return {
+      id: post.id, title, url: post.link, date: post.date,
+      filmYear: yearMatch   ? parseInt(yearMatch[1],   10)                      : null,
+      rating:   ratingMatch ? parseFloat(ratingMatch[1].replace(',', '.'))      : null,
+    };
+  });
+}
+
+// ─── Parse ────────────────────────────────────────────────────────────────────
+// Records uit het JSON-bestand hebben al title/url/filmYear/rating;
+// zet alleen 'date' om naar een Date-object voor sorteer/filter-gebruik.
+function parseReview(r) {
+  return { ...r, dateAdded: new Date(r.date) };
+}
+
+// ─── Filter & Sort ────────────────────────────────────────────────────────────
+function getVisible() {
+  const q      = document.getElementById('f-search').value.trim().toLowerCase();
+  const yrFrom = document.getElementById('f-year-from').value.trim();
+  const yrTo   = document.getElementById('f-year-to').value.trim();
+  const mo     = document.getElementById('f-month').value;
+  const minR = document.getElementById('f-min').value;
+  const maxR = document.getElementById('f-max').value;
+
+  let list = reviews.filter(r => {
+    if (q && !r.title.toLowerCase().includes(q)) return false;
+    if (yrFrom && (r.filmYear === null || r.filmYear < parseInt(yrFrom, 10))) return false;
+    if (yrTo   && (r.filmYear === null || r.filmYear > parseInt(yrTo,   10))) return false;
+    if (mo && r.dateAdded.toISOString().slice(0, 7) !== mo) return false;
+    if (minR !== '' && (r.rating === null || r.rating < parseFloat(minR))) return false;
+    if (maxR !== '' && (r.rating === null || r.rating > parseFloat(maxR))) return false;
+    return true;
+  });
+
+  list.sort((a, b) => {
+    let va, vb;
+    if (sortCol === 'title')     { va = a.title; vb = b.title; }
+    else if (sortCol === 'rating')    { va = a.rating ?? -1; vb = b.rating ?? -1; }
+    else if (sortCol === 'filmYear')  { va = a.filmYear ?? 0; vb = b.filmYear ?? 0; }
+    else                              { va = a.dateAdded.getTime(); vb = b.dateAdded.getTime(); }
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ?  1 : -1;
+    return 0;
+  });
+
+  return list;
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+const NL_MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+function fmtDate(d) {
+  return `${d.getDate()} ${NL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function badgeClass(r) {
+  if (r === null) return 'b-none';
+  if (r >= 4.5)  return 'b-top';
+  if (r >= 3.5)  return 'b-high';
+  if (r >= 2.5)  return 'b-mid';
+  return 'b-low';
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function th(col, label) {
+  const cls = sortCol === col ? 'active' : '';
+  const arrow = sortCol === col ? (sortAsc ? '↑' : '↓') : '↕';
+  return `<th class="${cls}" data-col="${col}">${label} <span class="sort-arrow">${arrow}</span></th>`;
+}
+
+function render() {
+  const list = getVisible();
+
+  // Stats
+  const rated = reviews.filter(r => r.rating !== null);
+  const avg = rated.length
+    ? (rated.reduce((s, r) => s + r.rating, 0) / rated.length).toFixed(1)
+    : '—';
+  const highest = rated.length ? Math.max(...rated.map(r => r.rating)) : '—';
+  document.getElementById('s-total').textContent = reviews.length;
+  document.getElementById('s-shown').textContent = list.length;
+  document.getElementById('s-avg').textContent  = avg;
+  document.getElementById('s-high').textContent = highest;
+  document.getElementById('table-meta').textContent =
+    `${list.length} van ${reviews.length} recensies`;
+
+  const body = document.getElementById('table-body');
+
+  if (!list.length) {
+    body.innerHTML = '<div class="state-empty">Geen films gevonden met deze filters.</div>';
+    return;
+  }
+
+  let html = `<table>
+    <thead><tr>
+      <th data-col="">Nr.</th>
+      ${th('title',     'Filmtitel')}
+      ${th('rating',    'Waardering')}
+      ${th('filmYear',  'Filmjaar')}
+      ${th('dateAdded', 'Datum toegevoegd')}
+      <th>Recensie</th>
+    </tr></thead>
+    <tbody>`;
+
+  list.forEach((r, i) => {
+    const bc = badgeClass(r.rating);
+    const rv = r.rating !== null ? r.rating : '—';
+    const fy = r.filmYear ?? '—';
+    html += `<tr>
+      <td class="col-num">${i + 1}</td>
+      <td class="col-title"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></td>
+      <td class="col-rating"><span class="badge ${bc}">${rv}</span></td>
+      <td class="col-year">${fy}</td>
+      <td class="col-date">${fmtDate(r.dateAdded)}</td>
+      <td class="col-link"><a href="${esc(r.url)}" target="_blank" rel="noopener">Lees →</a></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  body.innerHTML = html;
+
+  // Attach sort listeners to headers
+  body.querySelectorAll('thead th[data-col]').forEach(el => {
+    const col = el.getAttribute('data-col');
+    if (!col) return;
+    el.style.cursor = 'pointer';
+    el.onclick = () => setSort(col);
+  });
+}
+
+// ─── Sorting ─────────────────────────────────────────────────────────────────
+function setSort(col) {
+  if (sortCol === col) {
+    sortAsc = !sortAsc;
+  } else {
+    sortCol = col;
+    sortAsc = col === 'title';
+  }
+  render();
+}
+
+// ─── Populate filter dropdowns ────────────────────────────────────────────────
+function populateFilters() {
+  // Months added
+  const months = [...new Set(reviews.map(r => r.dateAdded.toISOString().slice(0, 7)))].sort().reverse();
+  const mSel = document.getElementById('f-month');
+  months.forEach(m => {
+    const [y, mo] = m.split('-');
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = `${NL_MONTHS[parseInt(mo, 10) - 1]} ${y}`;
+    mSel.appendChild(o);
+  });
+}
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+function resetFilters() {
+  ['f-search','f-year-from','f-year-to','f-month','f-min','f-max'].forEach(id =>
+    document.getElementById(id).value = ''
+  );
+  render();
+}
+
+['f-month','f-min','f-max'].forEach(id =>
+  document.getElementById(id).addEventListener('change', render)
+);
+['f-search','f-year-from','f-year-to'].forEach(id =>
+  document.getElementById(id).addEventListener('input', render)
+);
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const raw = await loadReviews();
+    reviews = raw.map(parseReview);
+    populateFilters();
+    render();
+  } catch (err) {
+    document.getElementById('table-body').innerHTML =
+      `<div class="state-error">⚠ Kon recensies niet laden: ${esc(err.message)}<br>
+       <small>Controleer de internetverbinding en herlaad de pagina.</small></div>`;
+    document.getElementById('table-meta').textContent = 'Laden mislukt';
+  }
+})();
+</script>
+
+</body>
+</html>
