@@ -550,9 +550,17 @@ function fmtDate(d) {
 }
 
 function jwUrl(title) {
-  // Strip jaar-suffix "(1972)" voor een schonere zoekopdracht
-  const clean = title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
-  return `https://www.justwatch.com/nl/zoeken?q=${encodeURIComponent(clean)}`;
+  const slug = title
+    .replace(/\s*\(\d{4}\)[^(]*$/, '')   // verwijder jaar-suffix
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')                      // decomponeer accenten
+    .replace(/[̀-ͯ]/g, '')       // verwijder accenttekens
+    .replace(/[^a-z0-9\s-]/g, '')         // verwijder leestekens
+    .trim()
+    .replace(/\s+/g, '-')                  // spaties → koppeltekens
+    .replace(/-+/g, '-');                  // dubbele koppeltekens samenvoegen
+  return `https://www.justwatch.com/nl/film/${slug}`;
 }
 
 function badgeClass(r) {
