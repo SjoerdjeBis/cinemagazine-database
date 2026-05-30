@@ -705,7 +705,7 @@ function fmtDate(d) {
 function jwUrl(title, year) {
   const clean = title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
   const q = year ? `${clean} ${year}` : clean;
-  return `https://www.justwatch.com/nl/zoeken?q=${encodeURIComponent(q)}`;
+  return `https://www.justwatch.com/nl/search?q=${encodeURIComponent(q)}`;
 }
 
 function badgeClass(r) {
