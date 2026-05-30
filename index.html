@@ -509,10 +509,13 @@ async function fetchImdbRating(title, year, apiKey) {
   const key   = imdbKey(title, year);
   if (imdbCache[key] !== undefined) return imdbCache[key];
   const clean = title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
+  const omdb  = async (y) => (await fetch(
+    `https://www.omdbapi.com/?t=${encodeURIComponent(clean)}&y=${y || ''}&type=movie&apikey=${apiKey}`
+  )).json();
   try {
-    const data = await (await fetch(
-      `https://www.omdbapi.com/?t=${encodeURIComponent(clean)}&y=${year || ''}&type=movie&apikey=${apiKey}`
-    )).json();
+    let data = await omdb(year);
+    // Fallback: probeer zonder jaar als niets gevonden
+    if (data.Response !== 'True' && year) data = await omdb('');
     const val = data.Response === 'True' && data.imdbRating !== 'N/A'
       ? parseFloat(data.imdbRating) : null;
     imdbCache[key] = val;
@@ -533,7 +536,7 @@ async function fetchImdbForPage(list, apiKey) {
 
 function fmtImdb(val) {
   if (val === undefined) return '<span style="color:#bbb;font-size:0.75rem">laden…</span>';
-  if (val === null)      return '<span style="color:#ccc">—</span>';
+  if (val === null)      return '<span style="color:#ccc" title="Niet gevonden in OMDb">—</span>';
   return `<span style="font-weight:600;color:#333">${val}</span>`;
 }
 
