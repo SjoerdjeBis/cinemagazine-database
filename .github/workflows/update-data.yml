@@ -23,19 +23,21 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Nieuwe recensies en IMDb-scores ophalen
+      - name: Nieuwe recensies, IMDb-scores, TMDB-info en JustWatch-links ophalen
         env:
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
-        run: python3 scraper.py --imdb
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: python3 scraper.py --imdb --tmdb --justwatch
 
       - name: Wijzigingen committen
         run: |
-          if git diff --quiet -- data/reviews.json; then
+          git add -N data/plots.json
+          if git diff --quiet -- data/; then
             echo "Geen wijzigingen."
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/reviews.json
+          git add data/reviews.json data/plots.json
           git commit -m "Data bijgewerkt $(date -u +%Y-%m-%d)"
           git push

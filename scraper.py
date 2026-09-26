@@ -7,6 +7,8 @@ Gebruik:
     python3 scraper.py          # nieuwe recensies ophalen
     python3 scraper.py --imdb   # daarna IMDb-nummers opzoeken via OMDb (vereist
                                 # OMDB_API_KEY) en actuele scores ophalen bij IMDb
+    python3 scraper.py --justwatch   # JustWatch-pagina's opzoeken (kan samen met --imdb)
+    python3 scraper.py --tmdb   # genres en beschrijvingen via TMDB (vereist TMDB_API_KEY)
 
 Na de eerste volledige run haalt het script alleen nog nieuwe recensies op:
 het stopt bij de eerste pagina waarop een al bekende recensie staat. Bestaande
@@ -21,7 +23,7 @@ import re
 import sys
 import time
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -31,12 +33,24 @@ FIELDS    = 'id,title,date,link,content'
 PER_PAGE  = 100
 DELAY     = 0.4   # seconden tussen requests (wees beleefd)
 OUTPUT    = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'reviews.json')
+PLOTS     = os.path.join(os.path.dirname(OUTPUT), 'plots.json')   # beschrijvingen, apart: scheelt MB's
 USER_AGENT = 'CinemagazineScraper/1.1 (+https://github.com/SjoerdjeBis/cinemagazine-database)'
 
 OMDB_URL    = 'https://www.omdbapi.com/'
 OMDB_BUDGET = 900   # max. OMDb-requests per run (gratis limiet: 1000 per dag)
 OMDB_DELAY  = 0.15
 IMDB_RATINGS_URL = 'https://datasets.imdbws.com/title.ratings.tsv.gz'   # dagelijks bijgewerkt
+
+JW_URL        = 'https://apis.justwatch.com/graphql'
+JW_BUDGET     = 1500   # max. JustWatch-requests per run
+JW_DELAY      = 0.2
+JW_MIN_RATING = 4      # de site toont alleen bij deze films een JustWatch-link
+JW_RECHECK_AGE   = 365   # niet-gevonden films uit recensies van max. zo oud (dagen)...
+JW_RECHECK_EVERY = 7     # ...om de zoveel dagen opnieuw proberen
+
+TMDB_URL    = 'https://api.themoviedb.org/3'
+TMDB_BUDGET = 3000   # max. TMDB-requests per run
+TMDB_DELAY  = 0.05
 
 YEAR_SUFFIX = re.compile(r'\s*\((\d{4})\)[^(]*$')
 
@@ -106,6 +120,12 @@ def load():
     # Opschonen van oudere data: HTML-entiteiten in titels, niet-recensies
     reviews = [dict(r, title=html.unescape(r['title']))
                for r in data.get('reviews', []) if is_review(r['url'])]
+    if os.path.exists(PLOTS):
+        with open(PLOTS, encoding='utf-8') as f:
+            plots = json.load(f)
+        for r in reviews:
+            if str(r['id']) in plots:
+                r['plot'] = plots[str(r['id'])]
     # Bestanden van vóór de 'complete'-vlag waren altijd volledige scrapes
     return reviews, data.get('complete', True), data.get('last_updated')
 
@@ -119,12 +139,21 @@ def save(reviews, complete, last_updated=None):
         'total':        len(reviews),
     }
     # Eén recensie per regel: kleine, leesbare git-diffs
-    lines = [json.dumps(r, ensure_ascii=False, separators=(',', ':')) for r in reviews]
+    lines = [json.dumps({k: v for k, v in r.items() if k != 'plot'},
+                        ensure_ascii=False, separators=(',', ':')) for r in reviews]
     body  = json.dumps(head, ensure_ascii=False, separators=(',', ':'))[:-1]
-    tmp   = OUTPUT + '.tmp'
+    write_atomic(OUTPUT, body + ',"reviews":[\n' + ',\n'.join(lines) + '\n]}\n')
+
+    plots = [json.dumps(str(r['id']), ensure_ascii=False) + ':' + json.dumps(r['plot'], ensure_ascii=False)
+             for r in reviews if r.get('plot')]
+    write_atomic(PLOTS, '{\n' + ',\n'.join(plots) + '\n}\n')
+
+
+def write_atomic(path, text):
+    tmp = path + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
-        f.write(body + ',"reviews":[\n' + ',\n'.join(lines) + '\n]}\n')
-    os.replace(tmp, OUTPUT)
+        f.write(text)
+    os.replace(tmp, path)
 
 
 def scrape(reviews, complete):
@@ -276,6 +305,252 @@ def update_imdb_ratings(reviews):
     print(f'IMDb-scores: {len(ratings)} films met score')
 
 
+def urlopen_retry(req, retries=4):
+    """Response-body; bij netwerkstoringen en 429/5xx even wachten en opnieuw."""
+    for attempt in range(retries):
+        try:
+            with urlopen(req, timeout=20) as resp:
+                return resp.read()
+        except HTTPError as e:
+            if e.code not in (429, 500, 502, 503, 504) or attempt == retries - 1:
+                raise
+        except (URLError, TimeoutError):
+            if attempt == retries - 1:
+                raise
+        time.sleep(2 ** attempt * 2)
+
+
+# ─── JustWatch ────────────────────────────────────────────────────────────────
+# Per goed beoordeelde film de échte JustWatch-pagina opzoeken, zodat de site
+# daar direct naartoe linkt. JustWatch' zoekfunctie vindt kleinere films vaak
+# niet, en het jaartal wijkt soms af (festivaljaar vs. releasejaar).
+# Veld 'jwPath': ontbreekt = nog niet opgezocht, None = niet gevonden,
+# '' = wel bij JustWatch maar zonder Nederlandse pagina (nergens te zien in NL).
+
+class JustWatchStop(Exception):
+    pass
+
+
+def jw_query(query, variables):
+    body = json.dumps({'query': query, 'variables': variables}).encode()
+    req = Request(JW_URL, data=body, headers={'User-Agent': USER_AGENT,
+                                              'Content-Type': 'application/json'})
+    try:
+        data = json.loads(urlopen_retry(req))
+    except HTTPError as e:
+        raise JustWatchStop(f'HTTP {e.code}')
+    time.sleep(JW_DELAY)
+    return data
+
+
+JW_CONTENT = ('objectType content(country:NL,language:"nl"){'
+              'title originalTitle originalReleaseYear fullPath externalIds{imdbId}}')
+
+
+def jw_search(title):
+    q = ('query($f:TitleFilter){popularTitles(country:NL,first:10,filter:$f)'
+         '{edges{node{' + JW_CONTENT + '}}}}')
+    data = jw_query(q, {'f': {'searchQuery': title, 'objectTypes': ['MOVIE']}})
+    edges = ((data.get('data') or {}).get('popularTitles') or {}).get('edges') or []
+    return [e['node'] for e in edges]
+
+
+def jw_by_path(path):
+    q = 'query($p:String!){urlV2(fullPath:$p){node{... on MovieOrShow{' + JW_CONTENT + '}}}}'
+    data = jw_query(q, {'p': path})
+    node = ((data.get('data') or {}).get('urlV2') or {}).get('node')
+    return [node] if node and node.get('content') else []
+
+
+def slugify(s):
+    s = unicodedata.normalize('NFKD', s.lower().replace('&', 'and'))
+    s = ''.join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r'[^a-z0-9]+', '-', s).strip('-')
+
+
+def jw_match(node, title, year, imdb_id):
+    """Controleer of het JustWatch-resultaat echt deze film is."""
+    c = node['content']
+    if node.get('objectType') != 'MOVIE':
+        return False
+    if imdb_id and (c.get('externalIds') or {}).get('imdbId') == imdb_id:
+        return True
+    names = {simplify(c.get('title') or ''), simplify(c.get('originalTitle') or '')}
+    if simplify(title) not in names:
+        return False
+    jw_year = c.get('originalReleaseYear')
+    return not year or not jw_year or abs(jw_year - year) <= 1
+
+
+def jw_find(r, budget_left):
+    """Geeft (fullPath of None, gebruikte requests). '' = wel bij JustWatch, geen NL-pagina."""
+    year, imdb_id = r['filmYear'], r.get('imdbId')
+    used = 0
+    for t in imdb_candidates(r['title']):
+        # Eerst zoeken, dan de URL raden: /nl/movie/<titel>[-<jaar>]
+        slug  = slugify(t)
+        years = [year, year + 1, year - 1] if year else []
+        tries = [lambda: jw_search(t), lambda: jw_by_path(f'/nl/movie/{slug}')]
+        tries += [lambda y=y: jw_by_path(f'/nl/movie/{slug}-{y}') for y in years]
+        for attempt in tries:
+            if used >= budget_left:
+                raise JustWatchStop('budget op')
+            used += 1
+            hit = next((n for n in attempt() if jw_match(n, t, year, imdb_id)), None)
+            if hit:
+                return hit['content']['fullPath'] or '', used
+    return None, used
+
+
+def jw_due(r, today):
+    if r['rating'] is None or r['rating'] < JW_MIN_RATING:
+        return False
+    if 'jwPath' not in r:
+        return True
+    # Geen (NL-)pagina gevonden: recente recensies wekelijks opnieuw proberen,
+    # want nieuwe films komen vaak pas later bij JustWatch of op streamingdiensten
+    if r['jwPath'] or r['date'][:10] < (today - timedelta(days=JW_RECHECK_AGE)).isoformat():
+        return False
+    checked = r.get('jwChecked')
+    return not checked or checked < (today - timedelta(days=JW_RECHECK_EVERY)).isoformat()
+
+
+def lookup_justwatch(reviews, budget=JW_BUDGET):
+    today = datetime.now(timezone.utc).date()
+    todo  = [r for r in reviews if jw_due(r, today)]   # nieuwste eerst
+    print(f'JustWatch: {len(todo)} films op te zoeken (budget {budget} requests)')
+    used = found = 0
+    try:
+        for r in todo:
+            path, n = jw_find(r, budget - used)
+            used += n
+            r['jwPath'] = path
+            if path:
+                r.pop('jwChecked', None)
+                found += 1
+            else:
+                r['jwChecked'] = today.isoformat()
+    except JustWatchStop as e:
+        print(f'JustWatch: gestopt — {e}')
+    except (URLError, TimeoutError, ValueError) as e:
+        print(f'JustWatch: gestopt — netwerkfout: {e}')
+    print(f'JustWatch: {used} requests, {found} met NL-pagina gevonden')
+
+
+# ─── TMDB ─────────────────────────────────────────────────────────────────────
+# Genres en een korte beschrijving (Nederlands als TMDB die heeft, anders Engels).
+# Koppeling via het IMDb-nummer; zonder IMDb-nummer op titel, met het jaar max.
+# 1 jaar ernaast. Veld 'tmdbId': ontbreekt = nog niet opgezocht, None = niet gevonden.
+
+class TmdbStop(Exception):
+    pass
+
+
+def tmdb_get(path, api_key, **params):
+    headers = {'User-Agent': USER_AGENT, 'Accept': 'application/json'}
+    if len(api_key) > 40:   # v4 'API Read Access Token'
+        headers['Authorization'] = f'Bearer {api_key}'
+    else:                   # v3 API-sleutel
+        params['api_key'] = api_key
+    req = Request(f'{TMDB_URL}{path}?{urlencode(params)}', headers=headers)
+    try:
+        data = json.loads(urlopen_retry(req))
+    except HTTPError as e:
+        if e.code == 404:
+            return None
+        raise TmdbStop(f'HTTP {e.code}')
+    time.sleep(TMDB_DELAY)
+    return data
+
+
+ABBREVIATIONS = {'dr', 'mr', 'mrs', 'ms', 'st', 'jr', 'sr', 'prof', 'mevr', 'dhr', 'ca', 'vs', 'nr', 'bv', 'o.a', 'm.a.w'}
+
+
+def first_sentences(text, n=2):
+    """De eerste n zinnen; 'Dr.', 'J.' e.d. tellen niet als zinseinde."""
+    text, out, start = text.strip(), [], 0
+    for m in re.finditer(r'[.!?…]+["”’)]?\s+(?=[A-ZÀ-Ý0-9"“‘\'(])', text):
+        word = re.split(r'\s', text[start:m.start()])[-1].lower()
+        if text[m.start()] == '.' and (word in ABBREVIATIONS or len(word) == 1):
+            continue
+        out.append(text[start:m.end()].strip())
+        start = m.end()
+        if len(out) == n:
+            return ' '.join(out)
+    return ' '.join(out + [text[start:]]).strip()
+
+
+def tmdb_year(hit):
+    m = re.match(r'(\d{4})', hit.get('release_date') or '')
+    return int(m.group(1)) if m else None
+
+
+def tmdb_find(r, api_key):
+    """Geeft (TMDB-film of None, gebruikte requests)."""
+    if r.get('imdbId'):
+        data = tmdb_get(f"/find/{r['imdbId']}", api_key,
+                        external_source='imdb_id', language='nl-NL') or {}
+        hits = data.get('movie_results') or []
+        return (hits[0] if hits else None), 1
+    used, year = 0, r['filmYear']
+    # Ook in het Engels: zonder NL-titel toont TMDB de originele, soms in een ander schrift
+    for t in imdb_candidates(r['title']):
+        for lang in ('nl-NL', 'en-US'):
+            used += 1
+            data = tmdb_get('/search/movie', api_key, query=t, language=lang) or {}
+            for hit in data.get('results') or []:
+                names = {simplify(hit.get('title') or ''), simplify(hit.get('original_title') or '')}
+                y = tmdb_year(hit)
+                if simplify(t) in names and (not year or not y or abs(y - year) <= 1):
+                    if lang != 'nl-NL':   # Nederlandse tekst en genres alsnog ophalen
+                        used += 1
+                        hit = dict(tmdb_get(f"/movie/{hit['id']}", api_key, language='nl-NL') or hit,
+                                   genre_ids=hit.get('genre_ids', []))
+                    return hit, used
+    return None, used
+
+
+def tmdb_genre_names(api_key):
+    genres = tmdb_get('/genre/movie/list', api_key, language='nl') or {}
+    return {g['id']: g['name'] for g in genres.get('genres', [])}
+
+
+def tmdb_fill(r, api_key, names):
+    """Zoekt één film op en vult tmdbId, genres en plot. Geeft het aantal requests."""
+    hit, used = tmdb_find(r, api_key)
+    r['tmdbId'] = hit['id'] if hit else None
+    if not hit:
+        return used
+    r['genres'] = [names[g] for g in hit.get('genre_ids', []) if g in names]
+    overview = hit.get('overview') or ''
+    if not overview:   # geen Nederlandse tekst: dan de Engelse
+        used += 1
+        overview = (tmdb_get(f"/movie/{hit['id']}", api_key, language='en-US') or {}).get('overview') or ''
+    if overview:
+        r['plot'] = first_sentences(overview)
+    return used
+
+
+def lookup_tmdb(reviews, api_key, budget=TMDB_BUDGET):
+    todo = [r for r in reviews if 'tmdbId' not in r]   # nieuwste eerst
+    print(f'TMDB: {len(todo)} films nog niet opgezocht (budget {budget} requests)')
+    used = found = 0
+    try:
+        names = tmdb_genre_names(api_key)
+        used += 1
+        for r in todo:
+            if used + 8 > budget:
+                break
+            n = tmdb_fill(r, api_key, names)
+            used += n
+            found += bool(r['tmdbId'])
+    except TmdbStop as e:
+        print(f'TMDB: gestopt — {e}')
+    except (URLError, TimeoutError, ValueError) as e:
+        print(f'TMDB: gestopt — netwerkfout: {e}')
+    print(f'TMDB: {used} requests, {found} gevonden')
+
+
 def main():
     reviews, complete, last_updated = load()
     before = json.dumps(reviews, sort_keys=True)
@@ -292,6 +567,16 @@ def main():
             update_imdb_ratings(reviews)
         except (URLError, OSError, ValueError) as e:
             print(f'IMDb-scores: overgeslagen — {e}')
+
+    if '--tmdb' in sys.argv:
+        api_key = os.environ.get('TMDB_API_KEY', '').strip()
+        if api_key:
+            lookup_tmdb(reviews, api_key)
+        else:
+            print('TMDB: overgeslagen — TMDB_API_KEY is niet ingesteld')
+
+    if '--justwatch' in sys.argv:
+        lookup_justwatch(reviews)
 
     # Datum alleen verversen als er nieuwe recensies zijn
     changed = json.dumps(reviews, sort_keys=True) != before

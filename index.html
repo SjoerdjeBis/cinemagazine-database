@@ -4,527 +4,835 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15130F" media="(prefers-color-scheme: dark)">
   <title>Cinemagazine Filmwaarderingen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:          #f0f0f0;
-      --surface:     #ffffff;
-      --text:        #222;
-      --text-strong: #111;
-      --muted:       #888;
-      --muted-2:     #aaa;
-      --faint:       #ccc;
-      --border:      #ddd;
-      --border-soft: #f3f3f3;
-      --input-bg:    #fafafa;
-      --row-hover:   #fafafa;
-      --header-bg:   #111;
-      --th-bg:       #111;
-      --th-hover:    #222;
-      --accent:      #d62839;
-      --jw:          #1a3a6b;
-      --none-bg:     #ddd;
-      --none-fg:     #999;
-      --shadow:      0 1px 3px rgba(0,0,0,0.08);
+      --paper:       #F4F1EA;
+      --surface:     #FFFDF8;
+      --ink:         #1B1915;
+      --ink-inverse: #FFFDF8;
+      --muted:       #5E584D;
+      --muted-2:     #6B6559;
+      --faint:       #9A9385;
+      --border:      #CFC8B8;
+      --rule:        #DDD6C6;
+      --accent:      #A51D2A;
+      --accent-ink:  #FFFFFF;
+      --jw:          #1B3A6B;
+      --star:        #C08A1E;
+      --tip-bg:      #1B1915;
+      --tip-fg:      #F4F1EA;
+      --b-top:       #1D6B39;
+      --b-high:      #37803F;
+      --b-mid:       #A4561A;
+      --b-low:       #A8322A;
+      --b-none-bg:   #DDD6C6;
+      --b-none-fg:   #5E584D;
+      --shadow:      0 10px 30px rgba(27,25,21,0.22);
+
+      --serif: Fraunces, Georgia, 'Times New Roman', serif;
+      --sans:  'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg:          #121212;
-        --surface:     #1c1c1c;
-        --text:        #e4e4e4;
-        --text-strong: #f2f2f2;
-        --muted:       #8c8c8c;
-        --muted-2:     #7a7a7a;
-        --faint:       #555;
-        --border:      #333;
-        --border-soft: #262626;
-        --input-bg:    #232323;
-        --row-hover:   #232323;
-        --header-bg:   #0a0a0a;
-        --th-bg:       #0a0a0a;
-        --th-hover:    #1a1a1a;
-        --accent:      #e5404f;
-        --jw:          #7fa8e8;
-        --none-bg:     #333;
-        --none-fg:     #888;
-        --shadow:      0 1px 3px rgba(0,0,0,0.5);
+        --paper:       #15130F;
+        --surface:     #1E1B16;
+        --ink:         #EDE8DD;
+        --ink-inverse: #15130F;
+        --muted:       #A9A294;
+        --muted-2:     #9A9385;
+        --faint:       #6F695E;
+        --border:      #3B362D;
+        --rule:        #2C2822;
+        --accent:      #E35D68;
+        --accent-ink:  #1A0A0C;
+        --jw:          #8FB0E8;
+        --star:        #D9A53A;
+        --tip-bg:      #EDE8DD;
+        --tip-fg:      #15130F;
+        --b-none-bg:   #2F2B24;
+        --b-none-fg:   #A9A294;
+        --shadow:      0 10px 30px rgba(0,0,0,0.5);
       }
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
+    html { -webkit-text-size-adjust: 100%; scroll-padding-top: 48px; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: var(--sans);
+      background: var(--paper);
+      color: var(--ink);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
-
-    /* ---- Header ---- */
-    header {
-      background: var(--header-bg);
-      color: white;
-      padding: 28px 0 24px;
-    }
-    .header-inner {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 24px;
-    }
-    header h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-    }
-    header h1 em {
-      color: var(--accent);
-      font-style: normal;
-    }
-    header p {
-      margin-top: 6px;
-      color: #999;
-      font-size: 0.875rem;
-    }
-    header p a {
-      color: var(--accent);
+    button, input, select { font: inherit; color: inherit; }
+    button, a, input, select, label { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .skip {
+      position: absolute;
+      left: 16px;
+      top: -60px;
+      z-index: 30;
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: var(--ink-inverse);
+      font-weight: 600;
       text-decoration: none;
     }
-    header p a:hover { text-decoration: underline; }
-
-    /* ---- Layout ---- */
-    .container {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-
-    /* ---- Stats ---- */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .stat-card {
-      background: var(--surface);
-      border-radius: 8px;
-      padding: 16px 20px;
-      box-shadow: var(--shadow);
-    }
-    .stat-card .val {
-      font-size: 1.9rem;
-      font-weight: 700;
-      color: var(--text-strong);
-      line-height: 1.1;
-      font-variant-numeric: tabular-nums;
-    }
-    .stat-card .lbl {
-      font-size: 0.75rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      margin-top: 4px;
-    }
-
-    /* ---- Filters ---- */
-    .filters {
-      background: var(--surface);
-      border-radius: 8px;
-      padding: 16px 20px;
-      box-shadow: var(--shadow);
-      margin-bottom: 20px;
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-      align-items: flex-end;
-    }
-    .fg {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-    .fg > label, .fg-label {
-      font-size: 0.72rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 600;
-    }
-    .fg-range {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      color: var(--muted-2);
-      font-size: 0.8rem;
-    }
-    .fg select,
-    .fg input[type="search"],
-    .fg input[type="number"] {
-      padding: 7px 11px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 0.875rem;
-      background: var(--input-bg);
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.15s;
-      min-width: 150px;
-      height: 35px;
-    }
-    .fg-rating-range select { min-width: 90px; }
-    .fg-year-range input[type="number"] { min-width: unset; width: 80px; }
-    .fg select:focus,
-    .fg input:focus { border-color: var(--accent); }
-    .fg.fg-search { flex: 1; min-width: 200px; }
-    .fg.fg-search input { width: 100%; }
-    .btn-reset {
-      padding: 0 16px;
-      height: 35px;
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      color: var(--muted);
-      transition: all 0.15s;
-      align-self: flex-end;
-      white-space: nowrap;
-    }
-    .btn-reset:hover { background: var(--accent); border-color: var(--accent); color: white; }
-
+    .skip:focus { top: 12px; }
+    a { color: var(--accent); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .sr-only {
       position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
       overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
     }
 
-    /* ---- Table wrapper ---- */
-    .table-wrap {
-      background: var(--surface);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-    .table-meta {
-      padding: 10px 18px;
-      border-bottom: 1px solid var(--border-soft);
-      font-size: 0.8rem;
-      color: var(--muted-2);
-    }
-    #table-body {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
+    /* Knoppen voelen direct aan: kleine indruk bij het klikken */
+    .press { transition: transform 160ms var(--ease-out), background-color 150ms ease, color 150ms ease, border-color 150ms ease; }
+    .press:active { transform: scale(0.97); }
 
-    /* ---- Table ---- */
-    table {
-      width: 100%;
-      min-width: 600px;
-      border-collapse: collapse;
+    /* ---- Kop ---- */
+    .wrap { max-width: 1360px; margin: 0 auto; padding: 0 56px; }
+    header { padding-top: 44px; }
+    .masthead {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px 32px;
+      flex-wrap: wrap;
     }
-    thead th {
-      background: var(--th-bg);
-      color: #bbb;
-      padding: 11px 16px;
-      text-align: left;
+    .kicker {
       font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      user-select: none;
-      white-space: nowrap;
-    }
-    thead th[data-col] { cursor: pointer; }
-    thead th[data-col]:hover { background: var(--th-hover); color: white; }
-    thead th[data-col]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-    thead th.active { color: var(--accent); }
-    .sort-arrow { margin-left: 4px; opacity: 0.4; }
-    thead th.active .sort-arrow { opacity: 1; }
-
-    tbody tr {
-      border-bottom: 1px solid var(--border-soft);
-      transition: background 0.1s;
-    }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: var(--row-hover); }
-
-    td { padding: 11px 16px; }
-
-    td.col-num {
-      color: var(--faint);
-      font-size: 0.8rem;
-      width: 1px;
-      white-space: nowrap;
-      text-align: right;
-      padding: 11px 6px 11px 10px;
-    }
-    td.col-title a {
-      color: var(--text-strong);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 0.9rem;
-    }
-    td.col-title a:hover { color: var(--accent); }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 38px;
-      height: 26px;
-      border-radius: 5px;
       font-weight: 700;
-      font-size: 0.875rem;
-      color: white;
-      padding: 0 6px;
-    }
-    .b-top  { background: #1a7a3c; }
-    .b-high { background: #4a9e4a; }
-    .b-mid  { background: #d9721c; }
-    .b-low  { background: #c0392b; }
-    .b-none { background: var(--none-bg); color: var(--none-fg); font-weight: 400; font-size: 0.8rem; }
-
-    td.col-year {
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
-    td.col-date {
-      color: var(--muted-2);
-      font-size: 0.82rem;
-      white-space: nowrap;
-    }
-
-    td.col-jw a {
-      font-size: 0.78rem;
-      color: var(--jw);
-      border: 1px solid currentColor;
-      padding: 3px 9px;
-      border-radius: 4px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
       text-decoration: none;
-      white-space: nowrap;
-      transition: all 0.15s;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
+      color: var(--accent);
     }
-    td.col-jw a:hover { background: var(--jw); color: var(--surface); }
-    td.col-jw a svg { flex-shrink: 0; }
-
-    /* ---- IMDb column ---- */
-    td.col-imdb {
-      text-align: center;
-      width: 58px;
-      font-size: 0.85rem;
-      white-space: nowrap;
-    }
-    thead th.col-imdb-h { text-align: center; }
-    td.col-imdb a {
-      color: inherit;
+    .kicker:hover { text-decoration: underline; text-underline-offset: 3px; }
+    h1 {
+      margin-top: 6px;
+      font-family: var(--serif);
+      font-size: clamp(2.5rem, 6vw, 4.25rem);
+      line-height: 1;
       font-weight: 600;
-      text-decoration: none;
+      letter-spacing: -0.025em;
+      text-wrap: balance;
     }
-    td.col-imdb a:hover { color: var(--accent); }
-    .imdb-none, td.col-imdb a.imdb-none { color: var(--faint); font-weight: 400; }
+    .sub { margin-top: 12px; font-size: 0.95rem; color: var(--muted); }
+    .counts { display: flex; gap: 36px; text-align: right; }
+    .count { display: flex; flex-direction: column; gap: 2px; }
+    .count .num {
+      font-family: var(--serif);
+      font-size: 2.75rem;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .count.shown .num { color: var(--accent); }
+    .count .lbl { font-size: 0.8rem; color: var(--muted); }
+    .rule { margin-top: 22px; border-top: 3px solid var(--ink); padding-top: 3px; }
+    .rule::after { content: ''; display: block; border-top: 1px solid var(--ink); }
 
-    /* ---- States ---- */
-    .loading {
-      text-align: center;
-      padding: 64px 24px;
-      color: var(--muted-2);
+    /* ---- Indeling ---- */
+    .layout {
+      display: grid;
+      grid-template-columns: 304px minmax(0, 1fr);
+      padding-top: 32px;
+      padding-bottom: 48px;
     }
-    .spinner {
-      width: 36px;
-      height: 36px;
-      border: 3px solid var(--border-soft);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-      margin: 0 auto 14px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading p { font-size: 0.9rem; }
 
-    .state-error {
-      text-align: center;
-      padding: 48px;
-      color: #c0392b;
+    /* ---- Filterkolom ---- */
+    .filters {
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+      padding-right: 36px;
+      border-right: 1px solid var(--border);
+      align-self: start;
+    }
+    .f-head { display: none; }
+    .f-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    fieldset { border: none; min-width: 0; }
+    legend { padding: 0; }
+    .hint { margin-top: 8px; font-size: 0.78rem; color: var(--muted-2); }
+
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 44px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      transition: border-color 150ms ease;
+    }
+    .search:focus-within { border-color: var(--ink); }
+    .search svg { flex-shrink: 0; color: var(--muted); }
+    .search input {
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 0.95rem;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .seg {
+      display: grid;
+      grid-auto-columns: minmax(0, 1fr);
+      grid-auto-flow: column;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .seg button {
+      height: 40px;
+      border: none;
+      border-left: 1px solid var(--border);
+      background: transparent;
+      font-size: 0.82rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .seg button:first-child { border-left: none; }
+    .seg button[aria-pressed="true"] { background: var(--ink); color: var(--ink-inverse); font-weight: 600; border-color: var(--ink); }
+    .seg button[aria-pressed="true"] + button { border-left-color: var(--ink); }
+
+    .stars { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+    .stars button, .decades button, .chips button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+    }
+    .stars button {
+      height: 40px;
+      border-radius: 6px;
       font-size: 0.9rem;
-    }
-    .state-empty {
-      text-align: center;
-      padding: 48px;
-      color: var(--muted-2);
-      font-size: 0.9rem;
-    }
-
-    /* ---- Pagination ---- */
-    #pagination {
+      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .stars svg { color: var(--star); }
+    .stars button[aria-pressed="true"] { background: var(--ink); color: var(--ink-inverse); border-color: var(--ink); }
+
+    .check {
+      display: flex;
+      align-items: center;
       gap: 8px;
-      padding: 14px 16px;
-      border-top: 1px solid var(--border-soft);
-    }
-    #pagination:empty { display: none; }
-    #pagination button {
-      padding: 5px 12px;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      background: var(--surface);
+      margin-top: 10px;
+      min-height: 32px;
+      font-size: 0.9rem;
       cursor: pointer;
-      font-size: 0.82rem;
-      color: var(--muted);
-      transition: all 0.15s;
     }
-    #pagination button:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: white; }
-    #pagination button:disabled { opacity: 0.35; cursor: default; }
-    #pagination span { font-size: 0.82rem; color: var(--muted); padding: 0 6px; }
+    .check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips button {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 16px;
+      font-size: 0.82rem;
+    }
+    .chips button[aria-pressed="true"] { background: var(--ink); color: var(--ink-inverse); border-color: var(--ink); font-weight: 600; }
+    .link-btn {
+      margin-top: 8px;
+      min-height: 32px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--accent);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .decades { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .decades button { height: 34px; border-radius: 6px; font-size: 0.82rem; }
+    .decades button[aria-pressed="true"] { background: var(--ink); color: var(--ink-inverse); border-color: var(--ink); font-weight: 600; }
+    .years { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--faint); }
+    .years input {
+      width: 100%;
+      min-width: 0;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .years input:focus { border-color: var(--ink); outline: none; }
+
+    .reset {
+      align-self: flex-start;
+      min-height: 40px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--accent);
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .reset:disabled { color: var(--faint); text-decoration: none; cursor: default; }
+
+    @media (hover: hover) and (pointer: fine) {
+      .seg button:not([aria-pressed="true"]):hover,
+      .stars button:not([aria-pressed="true"]):hover,
+      .decades button:not([aria-pressed="true"]):hover,
+      .chips button:not([aria-pressed="true"]):hover { border-color: var(--ink); }
+      .seg button:not([aria-pressed="true"]):hover { background: var(--paper); }
+      .active button:hover, .f-done:hover, .m-filters:hover, .to-top:hover { opacity: 0.85; }
+      .reset:not(:disabled):hover, .link-btn:hover, .jw-search:hover { text-decoration-thickness: 2px; }
+    }
+
+    /* ---- Resultaten ---- */
+    .results { min-width: 0; padding-left: 40px; display: flex; flex-direction: column; gap: 16px; }
+    .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 16px;
+      flex-wrap: wrap;
+      min-height: 40px;
+    }
+    .active { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); }
+    .active button {
+      height: 32px;
+      padding: 0 10px 0 12px;
+      border: none;
+      border-radius: 16px;
+      background: var(--ink);
+      color: var(--ink-inverse);
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .sort { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--muted); }
+    .sort select, .m-sort select {
+      height: 40px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      font-size: 0.9rem;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .m-controls { display: none; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--paper);
+      padding: 0 0 10px;
+      border-bottom: 1px solid var(--ink);
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    tbody td { padding: 14px 16px 14px 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+    tbody td:last-child { padding-right: 0; }
+    th.c-rating, td.c-rating { width: 72px; }
+    th.c-imdb,   td.c-imdb   { width: 110px; }
+    th.c-added,  td.c-added  { width: 110px; }
+    th.c-jw,     td.c-jw     { width: 150px; }
+
+    .t-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .t-title {
+      font-family: var(--serif);
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+    .t-meta { margin-top: 3px; font-size: 0.875rem; color: var(--muted); }
+
+    .info {
+      position: relative;
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid var(--faint);
+      background: transparent;
+      color: var(--muted);
+      font: italic 600 12px/1 Georgia, serif;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .info::after { content: ''; position: absolute; inset: -11px; }   /* groter raakvlak */
+    .info[aria-expanded="true"], .info:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+    /* Beschrijving die openklapt (touchscreens) */
+    .plot {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 220ms var(--ease-out);
+    }
+    .plot > p { overflow: hidden; font-size: 0.9rem; line-height: 1.5; max-width: 62ch; }
+    .plot.open { grid-template-rows: 1fr; }
+    .plot.open > p { padding-top: 8px; }
+
+    .badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+      color: #FFFFFF;
+      text-decoration: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .badge:hover { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px currentColor; }
+      .b-none:hover { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--faint); }
+    }
+    .b-top  { background: var(--b-top); }
+    .b-high { background: var(--b-high); }
+    .b-mid  { background: var(--b-mid); }
+    .b-low  { background: var(--b-low); }
+    .b-none { background: var(--b-none-bg); color: var(--b-none-fg); font-weight: 500; }
+
+    .imdb-score { display: block; font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-decoration: none; }
+    a.imdb-score:hover { color: var(--accent); }
+    .imdb-votes { display: block; font-size: 0.75rem; color: var(--muted-2); }
+    .imdb-none { color: var(--faint); font-weight: 500; }
+    .m-lbl { display: none; }
+    td.c-added { font-size: 0.875rem; color: var(--muted); white-space: nowrap; }
+
+    .jw-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--jw);
+      border-radius: 6px;
+      color: var(--jw);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .jw-search { font-size: 0.82rem; font-weight: 600; color: var(--jw); white-space: nowrap; }
+    .jw-none { font-size: 0.82rem; color: var(--faint); white-space: nowrap; }
+    @media (hover: hover) and (pointer: fine) {
+      .jw-btn:hover { background: var(--jw); color: var(--surface); }
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 64px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid var(--rule);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { padding: 48px 0; text-align: center; color: var(--muted); }
+    .error { padding: 48px 0; text-align: center; color: var(--b-low); }
+
+    .to-top {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 5;
+      height: 44px;
+      padding: 0 16px;
+      border: none;
+      border-radius: 22px;
+      background: var(--ink);
+      color: var(--ink-inverse);
+      font-size: 0.875rem;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+    }
+    .to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+
+    /* ---- Tooltip ---- */
+    #tip {
+      position: fixed;
+      z-index: 10;
+      max-width: min(380px, calc(100vw - 24px));
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: var(--tip-bg);
+      color: var(--tip-fg);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      box-shadow: var(--shadow);
+      pointer-events: none;
+      transform-origin: top left;
+      transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
+    }
+    #tip.above { transform-origin: bottom left; }
+    #tip.hidden { opacity: 0; transform: scale(0.97); visibility: hidden; transition: opacity 100ms ease, transform 100ms ease, visibility 0s 100ms; }
+    #tip.instant { transition-duration: 0s; }
 
     footer {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 24px 32px;
+      padding-bottom: 40px;
       font-size: 0.78rem;
+      line-height: 1.6;
       color: var(--muted-2);
     }
     footer a { color: var(--muted); }
+    .backdrop { display: none; }
 
-    /* ---- Responsive ---- */
-    @media (max-width: 720px) {
-      .container { padding: 12px; }
-      footer { padding: 0 12px 24px; }
-      .fg select, .fg input[type="search"] { min-width: 120px; }
+    /* ---- Smal scherm: filters in een lade ---- */
+    @media (max-width: 900px) {
+      .wrap { padding: 0 16px; }
+      header { padding-top: 28px; }
+      .masthead { flex-direction: column; align-items: flex-start; }
+      .sub { display: none; }
+      .counts { gap: 18px; text-align: left; }
+      .count { flex-direction: row; align-items: baseline; gap: 6px; }
+      .count .num { font-size: 1.4rem; }
+      .rule { margin-top: 16px; }
+      .layout { display: block; padding-top: 16px; }
+      .results { padding-left: 0; gap: 10px; }
+
+      .m-controls { display: flex; flex-direction: column; gap: 10px; }
+      .m-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .m-filters {
+        height: 44px;
+        border: none;
+        border-radius: 6px;
+        background: var(--ink);
+        color: var(--ink-inverse);
+        font-size: 0.95rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+      }
+      .m-sort select { width: 100%; height: 44px; font-size: 0.95rem; }
+      .search input { font-size: 16px; }   /* voorkomt inzoomen op iOS */
+      .sort { display: none; }
+      .active > span { display: none; }
+
+      .filters {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 20;
+        max-height: 88vh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 0 20px 24px;
+        border: none;
+        border-radius: 16px 16px 0 0;
+        background: var(--paper);
+        box-shadow: 0 -12px 40px rgba(0,0,0,0.25);
+        transform: translateY(100%);
+        visibility: hidden;
+        transition: transform 380ms var(--ease-drawer), visibility 0s 380ms;
+      }
+      .filters.open { transform: none; visibility: visible; transition: transform 380ms var(--ease-drawer); }
+      .f-head {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 0 -20px;
+        padding: 14px 20px 10px;
+        background: var(--paper);
+        border-bottom: 1px solid var(--rule);
+      }
+      .f-head h2 { font-family: var(--serif); font-size: 1.4rem; font-weight: 600; }
+      .f-done {
+        height: 44px;
+        padding: 0 18px;
+        border: none;
+        border-radius: 22px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .filters .search { display: none; }   /* zoeken staat al boven de lijst */
+      .backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 15;
+        background: rgba(0,0,0,0.4);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 250ms ease;
+      }
+      .backdrop.open { opacity: 1; pointer-events: auto; }
+
+      /* Tabel als lijst */
+      thead { display: none; }
+      table, tbody, tr, td { display: block; }
+      tbody tr {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) 48px 48px;
+        grid-template-areas: "film film rating imdb" "added jw jw jw";
+        column-gap: 10px;
+        row-gap: 10px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--rule);
+      }
+      tbody td { padding: 0; border: none; width: auto !important; }
+      td.c-film { grid-area: film; }
+      td.c-rating { grid-area: rating; }
+      td.c-rating { align-self: start; }
+      td.c-imdb {
+        grid-area: imdb;
+        align-self: start;
+        height: 44px;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+      }
+      td.c-jw { grid-area: jw; align-self: center; }
+      td.c-added { grid-area: added; align-self: center; font-size: 0.82rem; }
+      .t-title { font-size: 1.12rem; }
+      .t-meta { font-size: 0.82rem; }
+      .badge { width: 44px; height: 44px; font-size: 1.1rem; }
+      .imdb-score { font-size: 0.95rem; line-height: 1.1; }
+      .imdb-votes { display: none; }
+      .m-lbl { display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-2); }
+      .jw-btn { height: auto; padding: 0; border: none; }
+      .to-top { right: 16px; bottom: 16px; }
     }
+
     @media (prefers-reduced-motion: reduce) {
-      .spinner { animation-duration: 2s; }
+      .press:active { transform: none; }
+      .filters, .filters.open { transition: visibility 0s; }
+      .plot, .to-top { transition: none; }
+      #tip, #tip.hidden { transform: none; }
+      .spinner { animation-duration: 1.5s; }
     }
   </style>
 </head>
 <body>
+<a class="skip" href="#list">Naar de lijst</a>
 
-<header>
-  <div class="header-inner">
-    <h1>Cinemagazine <em>Filmwaarderingen</em></h1>
-    <p>Alle filmrecensies van <a href="https://www.cinemagazine.nl" target="_blank" rel="noopener">cinemagazine.nl</a>
-      — bijgewerkt op <span id="last-updated">—</span></p>
+<header class="wrap">
+  <div class="masthead">
+    <div>
+      <a class="kicker" href="https://www.cinemagazine.nl" target="_blank" rel="noopener" translate="no">Cinemagazine</a>
+      <h1>Filmwaarderingen</h1>
+      <p class="sub">Alle filmrecensies van cinemagazine.nl, doorzoekbaar. Bijgewerkt op <span id="last-updated">—</span>.</p>
+    </div>
+    <div class="counts" aria-live="polite">
+      <div class="count"><span class="num" id="n-total">—</span><span class="lbl">recensies</span></div>
+      <div class="count shown"><span class="num" id="n-shown">—</span><span class="lbl">getoond</span></div>
+    </div>
   </div>
+  <div class="rule"></div>
 </header>
 
-<div class="container">
+<div class="wrap layout">
 
-  <div class="stats">
-    <div class="stat-card">
-      <div class="val" id="s-total">—</div>
-      <div class="lbl">Recensies totaal</div>
+  <aside class="filters" id="filters" aria-label="Filters">
+    <div class="f-head">
+      <h2>Filters</h2>
+      <button type="button" class="f-done press" id="f-done">Toon films</button>
     </div>
-    <div class="stat-card">
-      <div class="val" id="s-shown">—</div>
-      <div class="lbl">Getoond</div>
-    </div>
-    <div class="stat-card">
-      <div class="val" id="s-avg">—</div>
-      <div class="lbl">Gem. Cinemagazine (getoond)</div>
-    </div>
-    <div class="stat-card">
-      <div class="val" id="s-imdb">—</div>
-      <div class="lbl">Gem. IMDb (getoond)</div>
-    </div>
-  </div>
 
-  <div class="filters">
-    <div class="fg fg-search">
-      <label for="f-search">Zoek op titel</label>
-      <input type="search" id="f-search" placeholder="Bijv. The Fly, Amélie…" autocomplete="off">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <label class="sr-only" for="f-search">Zoek op titel</label>
+      <input type="search" id="f-search" name="q" placeholder="Titel, bijv. Amélie…" autocomplete="off" spellcheck="false">
     </div>
-    <div class="fg fg-year-range" role="group" aria-labelledby="lbl-year">
-      <span class="fg-label" id="lbl-year">Filmjaar</span>
-      <div class="fg-range">
-        <label class="sr-only" for="f-year-from">Filmjaar vanaf</label>
-        <input type="number" id="f-year-from" placeholder="Van" min="1880" max="2099">
-        <span aria-hidden="true">—</span>
-        <label class="sr-only" for="f-year-to">Filmjaar tot en met</label>
-        <input type="number" id="f-year-to" placeholder="Tot" min="1880" max="2099">
+
+    <fieldset>
+      <legend class="f-label">Toegevoegd</legend>
+      <div class="seg" id="f-period">
+        <button type="button" class="press" data-v="w"    title="Afgelopen 7 dagen">Week</button>
+        <button type="button" class="press" data-v="1m"   title="Afgelopen maand">1m</button>
+        <button type="button" class="press" data-v="3m"   title="Afgelopen 3 maanden">3m</button>
+        <button type="button" class="press" data-v="jaar" title="Dit jaar, vanaf 1 januari">Jaar</button>
+        <button type="button" class="press" data-v=""     title="Alle recensies">Altijd</button>
+      </div>
+      <p class="hint" id="period-hint"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend class="f-label">Cinemagazine, vanaf</legend>
+      <div class="stars" id="f-min"></div>
+      <p class="hint">Halve sterren tellen mee: vanaf 4 is 4 en 4,5.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend class="f-label">IMDb, vanaf</legend>
+      <div class="seg" id="f-imin">
+        <button type="button" class="press" data-v="">Alle</button>
+        <button type="button" class="press" data-v="6">6+</button>
+        <button type="button" class="press" data-v="7">7+</button>
+        <button type="button" class="press" data-v="8">8+</button>
+      </div>
+      <label class="check" title="Scores op basis van weinig stemmen zeggen weinig">
+        <input type="checkbox" id="f-votes"> Alleen met 1.000+ stemmen
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend class="f-label">Genre</legend>
+      <div class="chips" id="f-genres"></div>
+      <button type="button" class="link-btn" id="genres-more" hidden></button>
+    </fieldset>
+
+    <fieldset>
+      <legend class="f-label">Filmjaar</legend>
+      <div class="decades" id="f-decades"></div>
+      <div class="years">
+        <label class="sr-only" for="f-from">Filmjaar vanaf</label>
+        <input type="number" id="f-from" name="van" placeholder="Van" min="1880" max="2099" inputmode="numeric">
+        <span aria-hidden="true">–</span>
+        <label class="sr-only" for="f-to">Filmjaar tot en met</label>
+        <input type="number" id="f-to" name="tot" placeholder="Tot" min="1880" max="2099" inputmode="numeric">
+      </div>
+    </fieldset>
+
+    <button type="button" class="reset" id="f-reset" disabled>Wis filters</button>
+  </aside>
+  <div class="backdrop" id="backdrop"></div>
+
+  <main class="results">
+    <div class="m-controls">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <label class="sr-only" for="m-search">Zoek op titel</label>
+        <input type="search" id="m-search" name="q" placeholder="Zoek op titel…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="m-row">
+        <button type="button" class="m-filters press" id="m-open" aria-controls="filters" aria-expanded="false">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          <span id="m-open-label">Filters</span>
+        </button>
+        <label class="m-sort"><span class="sr-only">Sorteer</span><select id="m-sort"></select></label>
       </div>
     </div>
-    <div class="fg">
-      <label for="f-month">Datum toegevoegd</label>
-      <select id="f-month"><option value="">Alle maanden</option></select>
-    </div>
-    <div class="fg fg-rating-range" role="group" aria-labelledby="lbl-rating">
-      <span class="fg-label" id="lbl-rating">Waardering</span>
-      <div class="fg-range">
-        <label class="sr-only" for="f-min">Minimale waardering</label>
-        <select id="f-min">
-          <option value="">Min</option>
-          <option value="1">≥ 1</option>
-          <option value="1.5">≥ 1.5</option>
-          <option value="2">≥ 2</option>
-          <option value="2.5">≥ 2.5</option>
-          <option value="3">≥ 3</option>
-          <option value="3.5">≥ 3.5</option>
-          <option value="4">≥ 4</option>
-          <option value="4.5">≥ 4.5</option>
-          <option value="5">= 5</option>
-        </select>
-        <span aria-hidden="true">—</span>
-        <label class="sr-only" for="f-max">Maximale waardering</label>
-        <select id="f-max">
-          <option value="">Max</option>
-          <option value="0.5">≤ 0.5</option>
-          <option value="1">≤ 1</option>
-          <option value="1.5">≤ 1.5</option>
-          <option value="2">≤ 2</option>
-          <option value="2.5">≤ 2.5</option>
-          <option value="3">≤ 3</option>
-          <option value="3.5">≤ 3.5</option>
-          <option value="4">≤ 4</option>
-          <option value="4.5">≤ 4.5</option>
-        </select>
-      </div>
-    </div>
-    <button type="button" class="btn-reset" id="btn-reset">✕ Wis filters</button>
-  </div>
 
-  <div class="table-wrap">
-    <div class="table-meta" id="table-meta" aria-live="polite">Laden…</div>
-    <div id="table-body">
-      <div class="loading">
-        <div class="spinner"></div>
-        <p>Recensies laden…</p>
-      </div>
+    <div class="bar">
+      <div class="active" id="active"></div>
+      <label class="sort">Sorteer <select id="f-sort"></select></label>
     </div>
-    <div id="pagination"></div>
-  </div>
 
+    <div id="list" tabindex="-1">
+      <div class="status"><span class="spinner"></span>Recensies laden…</div>
+    </div>
+  </main>
 </div>
 
-<footer>
-  Data wordt dagelijks bijgewerkt. IMDb-scores komen uit de dagelijkse
+<footer class="wrap">
+  IMDb-scores komen uit de dagelijkse
   <a href="https://developer.imdb.com/non-commercial-datasets/" target="_blank" rel="noopener">IMDb-datasets</a>
   (met toestemming voor persoonlijk, niet-commercieel gebruik); films worden gekoppeld via
   <a href="https://www.omdbapi.com" target="_blank" rel="noopener">OMDb</a>.
-  Een lege IMDb-cel betekent: nog niet opgezocht; — : niet gevonden; n.b.: nog geen score op IMDb.
+  Genres en beschrijvingen komen van <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>.
+  This product uses the TMDB API but is not endorsed or certified by TMDB.
 </footer>
+
+<div id="tip" class="hidden" role="tooltip"></div>
+<button type="button" class="to-top press" id="to-top">↑ Naar boven</button>
 
 <script>
 'use strict';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const PAGE_SIZE = 100;
+// ─── Constanten ───────────────────────────────────────────────────────────────
+const BATCH     = 60;   // zoveel rijen per keer; meer laden tijdens scrollen
 const NL_MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-const SORT_COLS = ['title', 'rating', 'imdb', 'filmYear', 'dateAdded'];
+const NL_MONTHS_LONG = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+const GENRES_SHOWN = 10;
+const DECADES = [
+  { label: 'Oud', from: '',     to: '1959' },
+  { label: "'60", from: '1960', to: '1969' },
+  { label: "'70", from: '1970', to: '1979' },
+  { label: "'80", from: '1980', to: '1989' },
+  { label: "'90", from: '1990', to: '1999' },
+  { label: "'00", from: '2000', to: '2009' },
+  { label: "'10", from: '2010', to: '2019' },
+  { label: "'20", from: '2020', to: '' },
+];
+const SORTS = [
+  { v: 'dateAdded', label: 'Nieuwste recensie' },
+  { v: 'rating',    label: 'Hoogste Cinemagazine-cijfer' },
+  { v: 'imdb',      label: 'Hoogste IMDb-score' },
+  { v: 'filmYear',  label: 'Nieuwste film' },
+  { v: 'title',     label: 'Titel A–Z' },
+];
+const PERIOD_LABELS = { w: 'Afgelopen week', '1m': 'Afgelopen maand', '3m': 'Afgelopen 3 maanden', jaar: 'Dit jaar' };
 const $ = id => document.getElementById(id);
+const canHover = matchMedia('(hover: hover) and (pointer: fine)');
 
-// Opruimen van localStorage uit de vorige versie (browser-side OMDb en updates)
-try { ['cine_imdb', 'cine_updates', 'cine_imdb_key'].forEach(k => localStorage.removeItem(k)); }
-catch (_) {}
+// ─── Staat ────────────────────────────────────────────────────────────────────
+let reviews = [];
+let visible = [];
+let shown   = 0;
+let genreList = [];
+let genresExpanded = false;
+const f = { q: '', periode: '', min: '', imin: '', stemmen: false, genres: [], van: '', tot: '', sort: 'dateAdded' };
 
-// ─── State ───────────────────────────────────────────────────────────────────
-let reviews     = [];
-let sortCol     = 'dateAdded';
-let sortAsc     = false;
-let currentPage = 0;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Hulpfuncties ─────────────────────────────────────────────────────────────
 // Kleine letters, zonder accenten: "Amélie" → "amelie"
 function norm(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -534,15 +842,25 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const nl  = n => n.toLocaleString('nl-NL');
+const dec = n => String(n).replace('.', ',');
+
 function fmtDate(iso) {
   const [y, m, d] = iso.slice(0, 10).split('-');
   return `${parseInt(d, 10)} ${NL_MONTHS[parseInt(m, 10) - 1]} ${y}`;
 }
 
-function jwUrl(title, year) {
-  const clean = title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
-  const q = year ? `${clean} ${year}` : clean;
-  return `https://www.justwatch.com/nl/search?q=${encodeURIComponent(q)}`;
+function cleanTitle(title) {
+  return title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
+}
+
+// Directe link als de scraper de JustWatch-pagina vond ('' = niet te zien in NL),
+// anders zoeken op titel. Geen jaartal in de zoekopdracht: dat wijkt soms af
+// en maakt de zoekresultaten van JustWatch slechter.
+function jwUrl(r) {
+  if (r.jwPath) return `https://www.justwatch.com${r.jwPath}`;
+  if (r.jwPath === '') return null;
+  return `https://www.justwatch.com/nl/search?q=${encodeURIComponent(cleanTitle(r.title))}`;
 }
 
 function badgeClass(r) {
@@ -553,51 +871,63 @@ function badgeClass(r) {
   return 'b-low';
 }
 
-function average(nums) {
-  return nums.length ? (nums.reduce((s, n) => s + n, 0) / nums.length).toFixed(1) : '—';
+// Begin van een periode; 'w', '1m', '3m', 'jaar'. Oude links: 'd30', '2026-09', 'y2026'.
+function periodStart(v) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (v === 'w')    { d.setDate(d.getDate() - 7); return d; }
+  if (v === '1m')   { d.setMonth(d.getMonth() - 1); return d; }
+  if (v === '3m')   { d.setMonth(d.getMonth() - 3); return d; }
+  if (v === 'jaar') return new Date(d.getFullYear(), 0, 1);
+  return null;
 }
 
-function fmtImdb(r) {
-  if (r.imdbId === undefined) return '<span title="Nog niet opgezocht"></span>';
-  if (r.imdbId === null)      return '<span class="imdb-none" title="Niet gevonden op IMDb">—</span>';
-  const href  = `https://www.imdb.com/title/${esc(r.imdbId)}/`;
-  const votes = r.imdbVotes ? `${r.imdbVotes.toLocaleString('nl-NL')} stemmen` : '';
-  return typeof r.imdb === 'number'
-    ? `<a href="${href}" target="_blank" rel="noopener" title="${votes}">${r.imdb.toFixed(1)}</a>`
-    : `<a href="${href}" target="_blank" rel="noopener" class="imdb-none" title="Nog geen IMDb-score">n.b.</a>`;
+function periodTest(v) {
+  if (!v) return () => true;
+  const start = periodStart(v);
+  if (start) return r => r.dateAdded >= start.getTime();
+  if (/^d\d+$/.test(v)) {
+    const since = Date.now() - parseInt(v.slice(1), 10) * 864e5;
+    return r => r.dateAdded >= since;
+  }
+  if (/^y\d{4}$/.test(v)) return r => r.month.startsWith(v.slice(1));
+  return r => r.month === v;
 }
 
-// ─── URL-state ────────────────────────────────────────────────────────────────
-// Filters, sortering en pagina staan in de URL, zodat je een selectie kunt delen.
-const URL_FIELDS = { q: 'f-search', van: 'f-year-from', tot: 'f-year-to', maand: 'f-month', min: 'f-min', max: 'f-max' };
-
+// ─── URL-staat ────────────────────────────────────────────────────────────────
+// Filters en sortering staan in de URL, zodat je een selectie kunt delen.
 function readUrl() {
   const p = new URLSearchParams(location.search);
-  for (const [key, id] of Object.entries(URL_FIELDS)) {
-    if (p.has(key)) $(id).value = p.get(key);
-  }
-  if (SORT_COLS.includes(p.get('sort'))) sortCol = p.get('sort');
-  if (p.has('op')) sortAsc = p.get('op') === '1';
-  else sortAsc = sortCol === 'title';
-  currentPage = Math.max(0, (parseInt(p.get('p'), 10) || 1) - 1);
+  f.q       = p.get('q') || '';
+  f.periode = p.get('periode') || p.get('maand') || '';   // 'maand': oude links
+  const legacy = { d7: 'w', d30: '1m', d90: '3m' };
+  if (legacy[f.periode]) f.periode = legacy[f.periode];
+  f.min     = p.get('min') || '';
+  f.imin    = p.get('imin') || '';
+  f.stemmen = p.get('stemmen') === '1';
+  f.genres  = (p.get('genre') || '').split(',').filter(Boolean);
+  f.van     = p.get('van') || '';
+  f.tot     = p.get('tot') || '';
+  const sort = p.get('sort');
+  if (SORTS.some(s => s.v === sort)) f.sort = sort;
 }
 
 function writeUrl() {
   const p = new URLSearchParams();
-  for (const [key, id] of Object.entries(URL_FIELDS)) {
-    const v = $(id).value.trim();
-    if (v) p.set(key, v);
-  }
-  if (sortCol !== 'dateAdded' || sortAsc) {
-    p.set('sort', sortCol);
-    p.set('op', sortAsc ? '1' : '0');
-  }
-  if (currentPage > 0) p.set('p', currentPage + 1);
+  if (f.q)             p.set('q', f.q);
+  if (f.periode)       p.set('periode', f.periode);
+  if (f.min)           p.set('min', f.min);
+  if (f.imin)          p.set('imin', f.imin);
+  if (f.stemmen)       p.set('stemmen', '1');
+  if (f.genres.length) p.set('genre', f.genres.join(','));
+  if (f.van)           p.set('van', f.van);
+  if (f.tot)           p.set('tot', f.tot);
+  if (f.sort !== 'dateAdded') p.set('sort', f.sort);
   const qs = p.toString();
   history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
 }
 
-// ─── Load ─────────────────────────────────────────────────────────────────────
+// ─── Laden ────────────────────────────────────────────────────────────────────
 async function loadReviews() {
   const res = await fetch('data/reviews.json', { cache: 'no-cache' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -614,22 +944,48 @@ async function loadReviews() {
   }));
 }
 
-// ─── Filter & Sort ────────────────────────────────────────────────────────────
+// Beschrijvingen staan apart (scheelt MB's); pas laden als de tabel er al staat
+async function loadPlots() {
+  const res = await fetch('data/plots.json', { cache: 'no-cache' });
+  if (!res.ok) return;
+  const plots = await res.json();
+  for (const r of reviews) r.plot = plots[r.id];
+  renderRows(0, shown, true);
+}
+
+// ─── Filteren en sorteren ─────────────────────────────────────────────────────
+function activeFilters() {
+  const list = [];
+  if (f.q)       list.push({ label: `“${f.q}”`, clear: () => { f.q = ''; } });
+  if (f.periode) list.push({ label: PERIOD_LABELS[f.periode] || f.periode, clear: () => { f.periode = ''; } });
+  if (f.min)     list.push({ label: f.min === '5' ? 'Cinemagazine 5' : `Cinemagazine ${f.min}+`, clear: () => { f.min = ''; } });
+  if (f.imin)    list.push({ label: `IMDb ${f.imin}+`, clear: () => { f.imin = ''; } });
+  if (f.stemmen) list.push({ label: '1.000+ stemmen', clear: () => { f.stemmen = false; } });
+  for (const g of f.genres) list.push({ label: g, clear: () => { f.genres = f.genres.filter(x => x !== g); } });
+  if (f.van || f.tot) {
+    const label = f.van && f.tot ? (f.van === f.tot ? f.van : `${f.van}–${f.tot}`) : f.van ? `Vanaf ${f.van}` : `T/m ${f.tot}`;
+    list.push({ label: `Filmjaar ${label}`, clear: () => { f.van = ''; f.tot = ''; } });
+  }
+  return list;
+}
+
 function getVisible() {
-  const q      = norm($('f-search').value.trim());
-  const yrFrom = parseInt($('f-year-from').value, 10);
-  const yrTo   = parseInt($('f-year-to').value, 10);
-  const mo     = $('f-month').value;
-  const minR   = parseFloat($('f-min').value);
-  const maxR   = parseFloat($('f-max').value);
+  const q      = norm(f.q.trim());
+  const inPeriod = periodTest(f.periode);
+  const minR   = parseFloat(f.min);
+  const minI   = parseFloat(f.imin);
+  const yrFrom = parseInt(f.van, 10);
+  const yrTo   = parseInt(f.tot, 10);
 
   const list = reviews.filter(r => {
     if (q && !r.search.includes(q)) return false;
-    if (!isNaN(yrFrom) && (r.filmYear === null || r.filmYear < yrFrom)) return false;
-    if (!isNaN(yrTo)   && (r.filmYear === null || r.filmYear > yrTo))   return false;
-    if (mo && r.month !== mo) return false;
-    if (!isNaN(minR) && (r.rating === null || r.rating < minR)) return false;
-    if (!isNaN(maxR) && (r.rating === null || r.rating > maxR)) return false;
+    if (!inPeriod(r)) return false;
+    if (!isNaN(minR) && !(r.rating >= minR)) return false;
+    if (!isNaN(minI) && !(r.imdb >= minI)) return false;
+    if (f.stemmen && !(r.imdbVotes >= 1000)) return false;
+    if (f.genres.length && !f.genres.some(g => r.genres?.includes(g))) return false;
+    if (!isNaN(yrFrom) && !(r.filmYear >= yrFrom)) return false;
+    if (!isNaN(yrTo)   && !(r.filmYear <= yrTo))   return false;
     return true;
   });
 
@@ -639,170 +995,382 @@ function getVisible() {
     imdb:      r => r.imdb ?? -1,
     filmYear:  r => r.filmYear ?? 0,
     dateAdded: r => r.dateAdded,
-  }[sortCol];
-  const dir = sortAsc ? 1 : -1;
+  }[f.sort];
+  const dir = f.sort === 'title' ? 1 : -1;
   list.sort((a, b) => {
     const va = key(a), vb = key(b);
     if (va < vb) return -dir;
     if (va > vb) return dir;
     return b.dateAdded - a.dateAdded;
   });
-
   return list;
 }
 
-// ─── Render ───────────────────────────────────────────────────────────────────
-function th(col, label, extraClass = '') {
-  const active = sortCol === col;
-  const arrow  = active ? (sortAsc ? '↑' : '↓') : '↕';
-  const aria   = active ? (sortAsc ? 'ascending' : 'descending') : 'none';
-  return `<th class="${active ? 'active' : ''} ${extraClass}" data-col="${col}" tabindex="0" aria-sort="${aria}">` +
-         `${label} <span class="sort-arrow" aria-hidden="true">${arrow}</span></th>`;
+// ─── Weergave: filters ────────────────────────────────────────────────────────
+function syncControls() {
+  if ($('f-search') !== document.activeElement) $('f-search').value = f.q;
+  if ($('m-search') !== document.activeElement) $('m-search').value = f.q;
+  for (const b of $('f-period').children) b.setAttribute('aria-pressed', b.dataset.v === f.periode);
+  for (const b of $('f-imin').children)   b.setAttribute('aria-pressed', b.dataset.v === f.imin);
+  for (const b of $('f-min').children)    b.setAttribute('aria-pressed', b.dataset.v === f.min);
+  for (const b of $('f-genres').children) b.setAttribute('aria-pressed', f.genres.includes(b.dataset.v));
+  for (const b of $('f-decades').children) {
+    const d = DECADES[b.dataset.i];
+    b.setAttribute('aria-pressed', f.van === d.from && f.tot === d.to);
+  }
+  $('f-votes').checked = f.stemmen;
+  if ($('f-from') !== document.activeElement) $('f-from').value = f.van;
+  if ($('f-to')   !== document.activeElement) $('f-to').value   = f.tot;
+  $('f-sort').value = f.sort;
+  $('m-sort').value = f.sort;
+
+  const start = periodStart(f.periode);
+  $('period-hint').textContent = start
+    ? `${PERIOD_LABELS[f.periode]}, vanaf ${start.getDate()} ${NL_MONTHS_LONG[start.getMonth()]}${f.periode === 'jaar' ? ` ${start.getFullYear()}` : ''}`
+    : 'Alle recensies sinds het begin';
+
+  const active = activeFilters();
+  $('f-reset').disabled = !active.length;
+  $('f-reset').textContent = active.length ? `Wis filters (${active.length})` : 'Wis filters';
+  $('m-open-label').textContent = active.length ? `Filters · ${active.length}` : 'Filters';
+  $('f-done').textContent = visible.length === 1 ? 'Toon 1 film' : `Toon ${nl(visible.length)} films`;
+  $('active').innerHTML = active.length
+    ? '<span>Actief:</span>' + active.map((a, i) =>
+        `<button type="button" class="press" data-i="${i}" aria-label="Filter ${esc(a.label)} verwijderen">${esc(a.label)}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`).join('')
+    : '';
+  $('active')._filters = active;
+}
+
+function buildControls() {
+  const star = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
+  $('f-min').innerHTML = [1, 2, 3, 4, 5].map(n =>
+    `<button type="button" class="press" data-v="${n}" aria-label="Vanaf ${n} ${n === 1 ? 'ster' : 'sterren'}">${n}${star}</button>`).join('');
+  $('f-decades').innerHTML = DECADES.map((d, i) =>
+    `<button type="button" class="press" data-i="${i}">${d.label}</button>`).join('');
+  const sortOpts = SORTS.map(s => `<option value="${s.v}">${s.label}</option>`).join('');
+  $('f-sort').innerHTML = sortOpts;
+  $('m-sort').innerHTML = sortOpts;
+
+  // Genres op volgorde van hoe vaak ze voorkomen
+  const counts = new Map();
+  for (const r of reviews) for (const g of r.genres || []) counts.set(g, (counts.get(g) || 0) + 1);
+  genreList = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+  renderGenres();
+}
+
+function renderGenres() {
+  // Gekozen genres blijven altijd zichtbaar, ook als ze buiten de top vallen
+  const list = genresExpanded ? genreList
+    : [...new Set([...genreList.slice(0, GENRES_SHOWN), ...f.genres])];
+  $('f-genres').innerHTML = list.map(g =>
+    `<button type="button" class="press" data-v="${esc(g)}">${esc(g)}</button>`).join('');
+  const more = $('genres-more');
+  more.hidden = genreList.length <= GENRES_SHOWN;
+  more.textContent = genresExpanded ? 'Minder genres' : `Alle ${genreList.length} genres`;
+}
+
+// ─── Weergave: lijst ──────────────────────────────────────────────────────────
+function rowHtml(r) {
+  const title = cleanTitle(r.title);
+  const year  = r.filmYear ?? '';
+  const meta  = [year, (r.genres || []).join(', ')].filter(Boolean).join(' · ');
+
+  let imdb;
+  if (r.imdbId === undefined)   imdb = '<span class="imdb-score imdb-none" title="Nog niet opgezocht">–</span>';
+  else if (r.imdbId === null)   imdb = '<span class="imdb-score imdb-none" title="Niet gevonden op IMDb">–</span>';
+  else if (typeof r.imdb === 'number') {
+    imdb = `<a class="imdb-score" href="https://www.imdb.com/title/${esc(r.imdbId)}/" target="_blank" rel="noopener">${dec(r.imdb.toFixed(1))}</a>` +
+           (r.imdbVotes ? `<span class="imdb-votes">${nl(r.imdbVotes)} stemmen</span>` : '');
+  } else {
+    imdb = `<a class="imdb-score imdb-none" href="https://www.imdb.com/title/${esc(r.imdbId)}/" target="_blank" rel="noopener" title="Nog geen IMDb-score">n.b.</a>`;
+  }
+
+  let jw = '';
+  if (r.rating !== null && r.rating >= 4) {
+    if (r.jwPath) {
+      jw = `<a class="jw-btn press" href="${esc(jwUrl(r))}" target="_blank" rel="noopener">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>JustWatch</a>`;
+    } else if (r.jwPath === '') {
+      jw = '<span class="jw-none" title="JustWatch kent deze film, maar hij is in Nederland nergens te zien">Niet in NL</span>';
+    } else {
+      jw = `<a class="jw-search" href="${esc(jwUrl(r))}" target="_blank" rel="noopener">Zoek op JustWatch</a>`;
+    }
+  }
+
+  const info = r.plot
+    ? `<button type="button" class="info press" data-id="${r.id}" aria-expanded="false" aria-controls="plot-${r.id}" aria-label="Waar gaat ${esc(title)} over?">i</button>`
+    : '';
+  const plot = r.plot ? `<div class="plot" id="plot-${r.id}"><p>${esc(r.plot)}</p></div>` : '';
+
+  return `<tr>
+    <td class="c-film">
+      <div class="t-line"><span class="t-title">${esc(title)}</span>${info}</div>
+      ${meta ? `<div class="t-meta">${esc(meta)}</div>` : ''}
+      ${plot}
+    </td>
+    <td class="c-rating"><a class="badge press ${badgeClass(r.rating)}" href="${esc(r.url)}" target="_blank" rel="noopener"
+      aria-label="Lees de recensie van ${esc(title)}${r.rating === null ? '' : `, cijfer ${dec(r.rating)}`}" title="Lees de recensie">${r.rating === null ? '–' : dec(r.rating)}</a></td>
+    <td class="c-imdb"><span class="m-lbl">IMDb</span>${imdb}</td>
+    <td class="c-added">${fmtDate(r.date)}</td>
+    <td class="c-jw">${jw}</td>
+  </tr>`;
+}
+
+// Rijen [from, to) tekenen; replace = bestaande rijen vervangen (na laden beschrijvingen)
+function renderRows(from, to, replace = false) {
+  const tbody = document.querySelector('#list tbody');
+  if (!tbody) return;
+  const html = visible.slice(from, to).map(rowHtml).join('');
+  if (replace) tbody.innerHTML = html;
+  else tbody.insertAdjacentHTML('beforeend', html);
+  shown = to;
+  updateStatus();
+}
+
+function updateStatus() {
+  const el = $('list-status');
+  if (!el) return;
+  el.innerHTML = shown < visible.length
+    ? `<span class="spinner"></span>Meer films laden… (${nl(shown)} van ${nl(visible.length)})`
+    : visible.length > BATCH ? `Alle ${nl(visible.length)} films getoond` : '';
 }
 
 function render() {
-  const list       = getVisible();
-  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  if (currentPage >= totalPages) currentPage = 0;
-  const pageStart  = currentPage * PAGE_SIZE;
-  const pageList   = list.slice(pageStart, pageStart + PAGE_SIZE);
-
-  // Stats (over de gefilterde selectie)
-  $('s-total').textContent = reviews.length.toLocaleString('nl-NL');
-  $('s-shown').textContent = list.length.toLocaleString('nl-NL');
-  $('s-avg').textContent   = average(list.filter(r => r.rating !== null).map(r => r.rating));
-  $('s-imdb').textContent  = average(list.filter(r => typeof r.imdb === 'number').map(r => r.imdb));
-  $('table-meta').textContent =
-    `${list.length.toLocaleString('nl-NL')} van ${reviews.length.toLocaleString('nl-NL')} recensies` +
-    (totalPages > 1 ? ` — pagina ${currentPage + 1} van ${totalPages}` : '');
-
+  hideTip();
+  visible = getVisible();
+  $('n-total').textContent = nl(reviews.length);
+  $('n-shown').textContent = nl(visible.length);
+  syncControls();
   writeUrl();
-  const body = $('table-body');
 
-  if (!list.length) {
-    body.innerHTML = '<div class="state-empty">Geen films gevonden met deze filters.</div>';
-    renderPagination(0);
+  if (!visible.length) {
+    $('list').innerHTML = '<div class="empty">Geen films gevonden met deze filters.</div>';
     return;
   }
-
-  let html = `<table>
+  $('list').innerHTML = `<table>
     <thead><tr>
-      <th class="col-num">Nr.</th>
-      ${th('title',     'Filmtitel')}
-      ${th('rating',    'Cinemagazine')}
-      ${th('imdb',      'IMDb', 'col-imdb-h')}
-      ${th('filmYear',  'Filmjaar')}
-      ${th('dateAdded', 'Datum toegevoegd')}
-      <th>JustWatch</th>
+      <th class="c-film">Film</th>
+      <th class="c-rating" title="Klik op het cijfer voor de recensie">Cijfer</th>
+      <th class="c-imdb">IMDb</th>
+      <th class="c-added">Toegevoegd</th>
+      <th class="c-jw">Kijken</th>
     </tr></thead>
-    <tbody>`;
-
-  pageList.forEach((r, i) => {
-    const jwCell = r.rating !== null && r.rating >= 4
-      ? `<a href="${esc(jwUrl(r.title, r.filmYear))}" target="_blank" rel="noopener">
-           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-           JustWatch
-         </a>`
-      : '';
-    html += `<tr>
-      <td class="col-num">${pageStart + i + 1}</td>
-      <td class="col-title"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></td>
-      <td class="col-rating"><span class="badge ${badgeClass(r.rating)}">${r.rating ?? '—'}</span></td>
-      <td class="col-imdb">${fmtImdb(r)}</td>
-      <td class="col-year">${r.filmYear ?? '—'}</td>
-      <td class="col-date">${fmtDate(r.date)}</td>
-      <td class="col-jw">${jwCell}</td>
-    </tr>`;
-  });
-
-  body.innerHTML = html + '</tbody></table>';
-  renderPagination(totalPages);
+    <tbody></tbody>
+  </table>
+  <div class="status" id="list-status" role="status"></div>`;
+  renderRows(0, Math.min(BATCH, visible.length));
+  queueFill();
 }
 
-// ─── Pagination ───────────────────────────────────────────────────────────────
-function renderPagination(totalPages) {
-  const el = $('pagination');
-  if (totalPages <= 1) { el.innerHTML = ''; return; }
-  const first = currentPage === 0;
-  const last  = currentPage >= totalPages - 1;
-  el.innerHTML = `
-    <button type="button" data-page="0" ${first ? 'disabled' : ''} aria-label="Eerste pagina">«</button>
-    <button type="button" data-page="${currentPage - 1}" ${first ? 'disabled' : ''}>‹ Vorige</button>
-    <span>Pagina ${currentPage + 1} van ${totalPages}</span>
-    <button type="button" data-page="${currentPage + 1}" ${last ? 'disabled' : ''}>Volgende ›</button>
-    <button type="button" data-page="${totalPages - 1}" ${last ? 'disabled' : ''} aria-label="Laatste pagina">»</button>`;
-}
-
-$('pagination').addEventListener('click', e => {
-  const btn = e.target.closest('button[data-page]');
-  if (!btn || btn.disabled) return;
-  currentPage = parseInt(btn.dataset.page, 10);
-  render();
-  document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-
-// ─── Sorting ─────────────────────────────────────────────────────────────────
-function setSort(col) {
-  if (sortCol === col) sortAsc = !sortAsc;
-  else { sortCol = col; sortAsc = col === 'title'; }
-  currentPage = 0;
-  render();
-  const th = document.querySelector(`thead th[data-col="${col}"]`);
-  if (th) th.focus({ preventScroll: true });
-}
-
-$('table-body').addEventListener('click', e => {
-  const th = e.target.closest('thead th[data-col]');
-  if (th) setSort(th.dataset.col);
-});
-$('table-body').addEventListener('keydown', e => {
-  const th = e.target.closest('thead th[data-col]');
-  if (th && (e.key === 'Enter' || e.key === ' ')) {
-    e.preventDefault();
-    setSort(th.dataset.col);
-  }
-});
-
-// ─── Filters ─────────────────────────────────────────────────────────────────
-function populateMonths() {
-  const months = [...new Set(reviews.map(r => r.month))].sort().reverse();
-  const sel    = $('f-month');
-  for (const m of months) {
-    const [y, mo] = m.split('-');
-    sel.add(new Option(`${NL_MONTHS[parseInt(mo, 10) - 1]} ${y}`, m));
+// Doorladen: zodra de onderkant van de lijst in de buurt komt, de volgende rijen erbij
+let fillQueued = false;
+function fillScreen() {
+  fillQueued = false;
+  const el = $('list-status');
+  while (el && shown < visible.length && el.getBoundingClientRect().top < innerHeight + 800) {
+    renderRows(shown, Math.min(shown + BATCH, visible.length));
   }
 }
-
-function onFilterChange() {
-  currentPage = 0;
-  render();
+function queueFill() {
+  if (!fillQueued) { fillQueued = true; requestAnimationFrame(fillScreen); }
 }
+addEventListener('scroll', queueFill, { passive: true });
+addEventListener('resize', queueFill);
+
+// ─── Interactie: filters ──────────────────────────────────────────────────────
+function update() { render(); }
 
 let debounceTimer;
-function onFilterInput() {
+function onSearch(e) {
+  f.q = e.target.value;
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(onFilterChange, 150);
+  debounceTimer = setTimeout(update, 150);
+}
+$('f-search').addEventListener('input', onSearch);
+$('m-search').addEventListener('input', onSearch);
+
+// Knopgroepen: nog eens klikken op de actieve knop zet hem uit
+function toggleGroup(id, key) {
+  $(id).addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]');
+    if (!b) return;
+    f[key] = f[key] === b.dataset.v ? '' : b.dataset.v;
+    update();
+  });
+}
+toggleGroup('f-period', 'periode');
+toggleGroup('f-min', 'min');
+toggleGroup('f-imin', 'imin');
+
+$('f-votes').addEventListener('change', e => { f.stemmen = e.target.checked; update(); });
+
+$('f-genres').addEventListener('click', e => {
+  const b = e.target.closest('button[data-v]');
+  if (!b) return;
+  const g = b.dataset.v;
+  f.genres = f.genres.includes(g) ? f.genres.filter(x => x !== g) : [...f.genres, g];
+  update();
+});
+$('genres-more').addEventListener('click', () => {
+  genresExpanded = !genresExpanded;
+  renderGenres();
+  syncControls();
+});
+
+$('f-decades').addEventListener('click', e => {
+  const b = e.target.closest('button[data-i]');
+  if (!b) return;
+  const d = DECADES[b.dataset.i];
+  const on = f.van === d.from && f.tot === d.to;
+  f.van = on ? '' : d.from;
+  f.tot = on ? '' : d.to;
+  update();
+});
+function onYear() {
+  f.van = $('f-from').value.trim();
+  f.tot = $('f-to').value.trim();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(update, 250);
+}
+$('f-from').addEventListener('input', onYear);
+$('f-to').addEventListener('input', onYear);
+
+function onSort(e) { f.sort = e.target.value; update(); }
+$('f-sort').addEventListener('change', onSort);
+$('m-sort').addEventListener('change', onSort);
+
+$('active').addEventListener('click', e => {
+  const b = e.target.closest('button[data-i]');
+  if (!b) return;
+  $('active')._filters[b.dataset.i].clear();
+  update();
+});
+
+$('f-reset').addEventListener('click', () => {
+  Object.assign(f, { q: '', periode: '', min: '', imin: '', stemmen: false, genres: [], van: '', tot: '' });
+  update();
+});
+
+// ─── Filterlade (smal scherm) ─────────────────────────────────────────────────
+function setDrawer(open) {
+  $('filters').classList.toggle('open', open);
+  $('backdrop').classList.toggle('open', open);
+  $('m-open').setAttribute('aria-expanded', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+  for (const el of [document.querySelector('header'), document.querySelector('.results'), document.querySelector('footer')]) {
+    el.inert = open;
+  }
+  if (open) $('f-done').focus({ preventScroll: true });
+  else $('m-open').focus({ preventScroll: true });
+}
+$('m-open').addEventListener('click', () => setDrawer(true));
+$('f-done').addEventListener('click', () => setDrawer(false));
+$('backdrop').addEventListener('click', () => setDrawer(false));
+
+// ─── Beschrijving: tooltip (muis) of openklappen (touchscreen) ────────────────
+// Hover of focus toont de tooltip; klikken zet hem vast. Na de eerste tooltip
+// verschijnen volgende direct, zonder vertraging of animatie.
+const tip = $('tip');
+let tipBtn = null, tipPinned = false, tipTimer = null, tipWarmUntil = 0;
+
+function plotOf(btn) {
+  return reviews.find(x => String(x.id) === btn.dataset.id)?.plot;
 }
 
-$('btn-reset').addEventListener('click', () => {
-  Object.values(URL_FIELDS).forEach(id => $(id).value = '');
-  onFilterChange();
-});
-['f-month', 'f-min', 'f-max'].forEach(id => $(id).addEventListener('change', onFilterChange));
-['f-search', 'f-year-from', 'f-year-to'].forEach(id => $(id).addEventListener('input', onFilterInput));
+function showTip(btn, immediate) {
+  const text = plotOf(btn);
+  if (!text) return;
+  clearTimeout(tipTimer);
+  const warm = Date.now() < tipWarmUntil;
+  const go = () => {
+    if (tipBtn && tipBtn !== btn) tipBtn.setAttribute('aria-expanded', 'false');
+    tipBtn = btn;
+    btn.setAttribute('aria-expanded', 'true');
+    tip.textContent = text;
+    tip.classList.toggle('instant', warm);
+    tip.classList.remove('hidden');
+    const b = btn.getBoundingClientRect();
+    const t = tip.getBoundingClientRect();
+    const below = b.bottom + 8 + t.height <= innerHeight - 12;
+    tip.classList.toggle('above', !below);
+    tip.style.left = `${Math.min(Math.max(12, b.left - 14), innerWidth - t.width - 12)}px`;
+    tip.style.top  = `${below ? b.bottom + 8 : b.top - 8 - t.height}px`;
+  };
+  if (immediate || warm) go();
+  else tipTimer = setTimeout(go, 250);
+}
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+function hideTip() {
+  clearTimeout(tipTimer);
+  if (!tipBtn) return;
+  tipBtn.setAttribute('aria-expanded', 'false');
+  tip.classList.add('hidden');
+  tipBtn = null;
+  tipPinned = false;
+  tipWarmUntil = Date.now() + 400;
+}
+
+function togglePlot(btn) {
+  const plot = $(`plot-${btn.dataset.id}`);
+  const open = !plot.classList.contains('open');
+  plot.classList.toggle('open', open);
+  btn.setAttribute('aria-expanded', open);
+}
+
+const list = $('list');
+list.addEventListener('mouseover', e => {
+  const btn = e.target.closest('.info');
+  if (btn && canHover.matches && !tipPinned) showTip(btn);
+});
+list.addEventListener('mouseout', e => {
+  if (e.target.closest('.info') && canHover.matches && !tipPinned) hideTip();
+});
+list.addEventListener('focusin', e => {
+  const btn = e.target.closest('.info');
+  if (btn && canHover.matches && btn.matches(':focus-visible')) showTip(btn, true);
+});
+list.addEventListener('focusout', e => {
+  if (e.target.closest('.info') && canHover.matches && !tipPinned) hideTip();
+});
+list.addEventListener('click', e => {
+  const btn = e.target.closest('.info');
+  if (!btn) return;
+  if (!canHover.matches) { togglePlot(btn); return; }
+  if (tipPinned && tipBtn === btn) { hideTip(); return; }
+  showTip(btn, true);
+  tipPinned = true;
+});
+document.addEventListener('click', e => { if (tipPinned && !e.target.closest('.info')) hideTip(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  hideTip();
+  if ($('filters').classList.contains('open')) setDrawer(false);
+});
+addEventListener('scroll', () => { if (tipBtn) hideTip(); }, { passive: true, capture: true });
+addEventListener('resize', hideTip);
+
+// ─── Naar boven ───────────────────────────────────────────────────────────────
+addEventListener('scroll', () => {
+  $('to-top').classList.toggle('show', scrollY > innerHeight * 1.5);
+}, { passive: true });
+$('to-top').addEventListener('click', () => {
+  const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+});
+
+// ─── Start ────────────────────────────────────────────────────────────────────
 (async () => {
   try {
     reviews = await loadReviews();
-    populateMonths();   // eerst de opties, dan kan de URL een maand selecteren
     readUrl();
+    buildControls();
     render();
+    loadPlots().catch(() => {});   // zonder beschrijvingen werkt de rest gewoon
   } catch (err) {
-    $('table-body').innerHTML =
-      `<div class="state-error">⚠ Kon recensies niet laden: ${esc(err.message)}<br>
+    $('list').innerHTML =
+      `<div class="error">Kon recensies niet laden: ${esc(err.message)}<br>
        <small>Controleer de internetverbinding en herlaad de pagina.</small></div>`;
-    $('table-meta').textContent = 'Laden mislukt';
   }
 })();
 </script>
