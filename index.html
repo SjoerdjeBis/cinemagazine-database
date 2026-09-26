@@ -322,7 +322,7 @@
       text-decoration: none;
     }
     td.col-imdb a:hover { color: var(--accent); }
-    .imdb-none { color: var(--faint); }
+    .imdb-none, td.col-imdb a.imdb-none { color: var(--faint); font-weight: 400; }
 
     /* ---- States ---- */
     .loading {
@@ -498,8 +498,11 @@
 </div>
 
 <footer>
-  Data wordt dagelijks bijgewerkt. IMDb-scores via <a href="https://www.omdbapi.com" target="_blank" rel="noopener">OMDb</a>;
-  een lege IMDb-cel betekent dat de film nog niet is opgezocht, — dat hij niet gevonden is.
+  Data wordt dagelijks bijgewerkt. IMDb-scores komen uit de dagelijkse
+  <a href="https://developer.imdb.com/non-commercial-datasets/" target="_blank" rel="noopener">IMDb-datasets</a>
+  (met toestemming voor persoonlijk, niet-commercieel gebruik); films worden gekoppeld via
+  <a href="https://www.omdbapi.com" target="_blank" rel="noopener">OMDb</a>.
+  Een lege IMDb-cel betekent: nog niet opgezocht; — : niet gevonden; n.b.: nog geen score op IMDb.
 </footer>
 
 <script>
@@ -555,11 +558,13 @@ function average(nums) {
 }
 
 function fmtImdb(r) {
-  if (r.imdb === undefined) return '<span title="Nog niet opgezocht"></span>';
-  if (r.imdb === null)      return '<span class="imdb-none" title="Niet gevonden in OMDb">—</span>';
-  return r.imdbId
-    ? `<a href="https://www.imdb.com/title/${esc(r.imdbId)}/" target="_blank" rel="noopener">${r.imdb}</a>`
-    : `<strong>${r.imdb}</strong>`;
+  if (r.imdbId === undefined) return '<span title="Nog niet opgezocht"></span>';
+  if (r.imdbId === null)      return '<span class="imdb-none" title="Niet gevonden op IMDb">—</span>';
+  const href  = `https://www.imdb.com/title/${esc(r.imdbId)}/`;
+  const votes = r.imdbVotes ? `${r.imdbVotes.toLocaleString('nl-NL')} stemmen` : '';
+  return typeof r.imdb === 'number'
+    ? `<a href="${href}" target="_blank" rel="noopener" title="${votes}">${r.imdb.toFixed(1)}</a>`
+    : `<a href="${href}" target="_blank" rel="noopener" class="imdb-none" title="Nog geen IMDb-score">n.b.</a>`;
 }
 
 // ─── URL-state ────────────────────────────────────────────────────────────────

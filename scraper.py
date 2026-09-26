@@ -5,20 +5,22 @@ Haalt recensies op via de WordPress REST API en slaat ze op als data/reviews.jso
 
 Gebruik:
     python3 scraper.py          # nieuwe recensies ophalen
-    python3 scraper.py --imdb   # daarna ook IMDb-scores aanvullen via OMDb
-                                # (vereist omgevingsvariabele OMDB_API_KEY)
+    python3 scraper.py --imdb   # daarna IMDb-nummers opzoeken via OMDb (vereist
+                                # OMDB_API_KEY) en actuele scores ophalen bij IMDb
 
 Na de eerste volledige run haalt het script alleen nog nieuwe recensies op:
 het stopt bij de eerste pagina waarop een al bekende recensie staat. Bestaande
 recensies worden niet opnieuw opgevraagd.
 """
 
+import gzip
 import html
 import json
 import os
 import re
 import sys
 import time
+import unicodedata
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -34,6 +36,7 @@ USER_AGENT = 'CinemagazineScraper/1.1 (+https://github.com/SjoerdjeBis/cinemagaz
 OMDB_URL    = 'https://www.omdbapi.com/'
 OMDB_BUDGET = 900   # max. OMDb-requests per run (gratis limiet: 1000 per dag)
 OMDB_DELAY  = 0.15
+IMDB_RATINGS_URL = 'https://datasets.imdbws.com/title.ratings.tsv.gz'   # dagelijks bijgewerkt
 
 YEAR_SUFFIX = re.compile(r'\s*\((\d{4})\)[^(]*$')
 
@@ -164,7 +167,13 @@ def scrape(reviews, complete):
     return new_found
 
 
-# ─── IMDb via OMDb ────────────────────────────────────────────────────────────
+# ─── IMDb ─────────────────────────────────────────────────────────────────────
+# Twee stappen:
+#   1. OMDb zoekt per film het IMDb-nummer op (eenmalig per film, dagbudget).
+#      Veld 'imdbId': ontbreekt = nog niet opgezocht, None = niet gevonden.
+#   2. De scores komen uit IMDb's eigen dagelijkse dataset (title.ratings),
+#      zodat ze altijd gelijk zijn aan wat IMDb nu toont. OMDb-scores zijn vaak
+#      verouderd of ontbreken, daarom worden die niet gebruikt.
 
 class OmdbStop(Exception):
     pass
@@ -191,44 +200,80 @@ def omdb_query(title, year, api_key):
     raise OmdbStop(error or 'onbekende fout')
 
 
-def imdb_candidates(title, year):
-    """Zoekvolgorde: volledige titel, losse delen van 'NL titel – originele titel',
-    en als laatste de volledige titel zonder jaar."""
+def simplify(s):
+    s = unicodedata.normalize('NFKD', s.lower())
+    return re.sub(r'[^a-z0-9]', '', ''.join(c for c in s if not unicodedata.combining(c)))
+
+
+def omdb_match_ok(hit, title, year):
+    """Controleer of het OMDb-resultaat echt deze film is."""
+    m = re.match(r'(\d{4})', hit.get('Year', ''))
+    if year:
+        return bool(m) and abs(int(m.group(1)) - year) <= 1
+    # Zonder filmjaar alleen bij exact dezelfde titel
+    return simplify(hit.get('Title', '')) == simplify(title)
+
+
+def imdb_candidates(title):
+    """Zoektitels: volledige titel, dan de losse delen van 'NL titel – originele titel'."""
     clean = YEAR_SUFFIX.sub('', title).strip()
     parts = [p.strip() for p in re.split(r'\s+[–—-]\s+', clean) if p.strip()]
-    tries = [(clean, year)]
-    if len(parts) > 1:
-        tries += [(p, year) for p in parts]
-    if year:
-        tries.append((clean, None))
-    return tries
+    return [clean] + (parts if len(parts) > 1 else [])
 
 
-def enrich_imdb(reviews, api_key, budget=OMDB_BUDGET):
-    todo = [r for r in reviews if 'imdb' not in r]
-    print(f'IMDb: {len(todo)} recensies nog niet opgezocht (budget {budget} requests)')
+def lookup_imdb_ids(reviews, api_key, budget=OMDB_BUDGET):
+    todo = [r for r in reviews if 'imdbId' not in r]
+    print(f'IMDb-nummers: {len(todo)} recensies nog niet opgezocht (budget {budget} requests)')
     used = found = 0
     try:
         for r in todo:   # reviews staan op datum, nieuwste eerst
-            tries = imdb_candidates(r['title'], r['filmYear'])
+            tries = imdb_candidates(r['title'])
             if used + len(tries) > budget:
                 break
-            hit = None
-            for t, y in tries:
+            imdb_id = None
+            for t in tries:
                 used += 1
-                hit = omdb_query(t, y, api_key)
+                hit = omdb_query(t, r['filmYear'], api_key)
                 time.sleep(OMDB_DELAY)
-                if hit:
+                if hit and omdb_match_ok(hit, t, r['filmYear']):
+                    imdb_id = hit.get('imdbID')
                     break
-            rating = hit.get('imdbRating') if hit else None
-            r['imdb']   = float(rating) if rating and rating != 'N/A' else None
-            r['imdbId'] = hit.get('imdbID') if hit else None
-            found += r['imdb'] is not None
+            r['imdbId'] = imdb_id
+            found += imdb_id is not None
     except OmdbStop as e:
-        print(f'IMDb: gestopt — OMDb meldt: {e}')
+        print(f'IMDb-nummers: gestopt — OMDb meldt: {e}')
     except (URLError, TimeoutError) as e:
-        print(f'IMDb: gestopt — netwerkfout: {e}')
-    print(f'IMDb: {used} requests, {found} scores gevonden')
+        print(f'IMDb-nummers: gestopt — netwerkfout: {e}')
+    print(f'IMDb-nummers: {used} requests, {found} gevonden')
+
+
+def update_imdb_ratings(reviews):
+    """Zet de actuele IMDb-score en het aantal stemmen bij elke gekoppelde film."""
+    wanted = {r['imdbId'] for r in reviews if r.get('imdbId')}
+    if not wanted:
+        return
+    print(f'IMDb-scores: dataset ophalen voor {len(wanted)} films...')
+    ratings = {}
+    req = Request(IMDB_RATINGS_URL, headers={'User-Agent': USER_AGENT})
+    with urlopen(req, timeout=120) as resp, \
+         gzip.open(resp, mode='rt', encoding='utf-8') as f:
+        next(f)   # kopregel: tconst, averageRating, numVotes
+        for line in f:
+            tconst, avg, votes = line.rstrip('\n').split('\t')
+            if tconst in wanted:
+                ratings[tconst] = (float(avg), int(votes))
+    if len(ratings) < len(wanted) * 0.5:
+        # Onverwacht weinig treffers: liever niets aanpassen dan scores wissen
+        print(f'IMDb-scores: slechts {len(ratings)} treffers — overgeslagen')
+        return
+    for r in reviews:
+        if r.get('imdbId'):
+            rating, votes = ratings.get(r['imdbId'], (None, None))
+            r['imdb'], r['imdbVotes'] = rating, votes
+        else:
+            r.pop('imdb', None)
+            r.pop('imdbVotes', None)
+    print(f'IMDb-scores: {len(ratings)} films met score')
 
 
 def main():
@@ -240,9 +285,13 @@ def main():
     if '--imdb' in sys.argv:
         api_key = os.environ.get('OMDB_API_KEY', '').strip()
         if api_key:
-            enrich_imdb(reviews, api_key)
+            lookup_imdb_ids(reviews, api_key)
         else:
-            print('IMDb: overgeslagen — OMDB_API_KEY is niet ingesteld')
+            print('IMDb-nummers: overgeslagen — OMDB_API_KEY is niet ingesteld')
+        try:
+            update_imdb_ratings(reviews)
+        except (URLError, OSError, ValueError) as e:
+            print(f'IMDb-scores: overgeslagen — {e}')
 
     # Datum alleen verversen als er nieuwe recensies zijn
     changed = json.dumps(reviews, sort_keys=True) != before
