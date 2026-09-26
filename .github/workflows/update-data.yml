@@ -1,0 +1,41 @@
+name: Recensies bijwerken
+
+on:
+  schedule:
+    - cron: '17 5 * * *'   # dagelijks rond 07:17 Nederlandse tijd
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Nieuwe recensies en IMDb-scores ophalen
+        env:
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+        run: python3 scraper.py --imdb
+
+      - name: Wijzigingen committen
+        run: |
+          if git diff --quiet -- data/reviews.json; then
+            echo "Geen wijzigingen."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/reviews.json
+          git commit -m "Data bijgewerkt $(date -u +%Y-%m-%d)"
+          git push
