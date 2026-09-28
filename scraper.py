@@ -57,6 +57,7 @@ TRAKT_URL        = 'https://api.trakt.tv'
 TRAKT_BUDGET     = 900    # max. Trakt-requests per run (limiet: 1000 per 5 minuten)
 TRAKT_DELAY      = 0.35
 TRAKT_MIN_RATING = 4      # zelfde films als de JustWatch-link
+TRAKT_MAX_SECONDS = 600  # nooit langer dan 10 minuten, ook als Trakt ons laat wachten
 
 YEAR_SUFFIX = re.compile(r'\s*\((\d{4})\)[^(]*$')
 
@@ -571,12 +572,17 @@ def trakt_slug(tmdb_id, client_id):
     req = Request(f'{TRAKT_URL}/search/tmdb/{tmdb_id}?type=movie',
                   headers={'User-Agent': USER_AGENT, 'Content-Type': 'application/json',
                            'trakt-api-version': '2', 'trakt-api-key': client_id})
-    try:
-        hits = json.loads(urlopen_retry(req))
-    except HTTPError as e:
-        if e.code == 404:
-            return None
-        raise TraktStop(f'HTTP {e.code}')
+    for attempt in range(4):
+        try:
+            hits = json.loads(urlopen_retry(req))
+            break
+        except HTTPError as e:
+            if e.code == 404:
+                return None
+            if e.code != 429 or attempt == 3:
+                raise TraktStop(f'HTTP {e.code}')
+            # Te snel: Trakt zegt hoe lang we moeten wachten
+            time.sleep(min(int(e.headers.get('Retry-After') or 30), 120) + 1)
     time.sleep(TRAKT_DELAY)
     movie = next((h.get('movie') for h in hits if h.get('type') == 'movie'), None)
     return (movie or {}).get('ids', {}).get('slug')
@@ -588,7 +594,11 @@ def lookup_trakt(reviews, client_id, budget=TRAKT_BUDGET):
     print(f'Trakt: {len(todo)} films nog niet opgezocht (budget {budget} requests)')
     used = found = 0
     try:
+        deadline = time.time() + TRAKT_MAX_SECONDS
         for r in todo[:budget]:   # nieuwste eerst
+            if time.time() > deadline:
+                print('Trakt: tijd op — de rest volgt bij de volgende run')
+                break
             used += 1
             r['traktSlug'] = trakt_slug(r['tmdbId'], client_id)
             found += r['traktSlug'] is not None
