@@ -9,6 +9,7 @@ Gebruik:
                                 # OMDB_API_KEY) en actuele scores ophalen bij IMDb
     python3 scraper.py --justwatch   # JustWatch-pagina's opzoeken (kan samen met --imdb)
     python3 scraper.py --tmdb   # genres en beschrijvingen via TMDB (vereist TMDB_API_KEY)
+    python3 scraper.py --trakt  # Trakt-pagina's opzoeken, na --tmdb (vereist TRAKT_CLIENT_ID)
 
 Na de eerste volledige run haalt het script alleen nog nieuwe recensies op:
 het stopt bij de eerste pagina waarop een al bekende recensie staat. Bestaande
@@ -51,6 +52,11 @@ JW_RECHECK_EVERY = 7     # ...om de zoveel dagen opnieuw proberen
 TMDB_URL    = 'https://api.themoviedb.org/3'
 TMDB_BUDGET = 3000   # max. TMDB-requests per run
 TMDB_DELAY  = 0.05
+
+TRAKT_URL        = 'https://api.trakt.tv'
+TRAKT_BUDGET     = 900    # max. Trakt-requests per run (limiet: 1000 per 5 minuten)
+TRAKT_DELAY      = 0.35
+TRAKT_MIN_RATING = 4      # zelfde films als de JustWatch-link
 
 YEAR_SUFFIX = re.compile(r'\s*\((\d{4})\)[^(]*$')
 
@@ -551,6 +557,48 @@ def lookup_tmdb(reviews, api_key, budget=TMDB_BUDGET):
     print(f'TMDB: {used} requests, {found} gevonden')
 
 
+# ─── Trakt ────────────────────────────────────────────────────────────────────
+# De Trakt-pagina van een film, zodat je hem vanaf de site op je Trakt-watchlist
+# (en daarmee in Stremio) zet. Opzoeken via het TMDB-nummer; zonder slug linkt
+# de site naar een zoekopdracht op titel.
+# Veld 'traktSlug': ontbreekt = nog niet opgezocht, None = niet gevonden.
+
+class TraktStop(Exception):
+    pass
+
+
+def trakt_slug(tmdb_id, client_id):
+    req = Request(f'{TRAKT_URL}/search/tmdb/{tmdb_id}?type=movie',
+                  headers={'User-Agent': USER_AGENT, 'Content-Type': 'application/json',
+                           'trakt-api-version': '2', 'trakt-api-key': client_id})
+    try:
+        hits = json.loads(urlopen_retry(req))
+    except HTTPError as e:
+        if e.code == 404:
+            return None
+        raise TraktStop(f'HTTP {e.code}')
+    time.sleep(TRAKT_DELAY)
+    movie = next((h.get('movie') for h in hits if h.get('type') == 'movie'), None)
+    return (movie or {}).get('ids', {}).get('slug')
+
+
+def lookup_trakt(reviews, client_id, budget=TRAKT_BUDGET):
+    todo = [r for r in reviews if 'traktSlug' not in r and r.get('tmdbId')
+            and r['rating'] is not None and r['rating'] >= TRAKT_MIN_RATING]
+    print(f'Trakt: {len(todo)} films nog niet opgezocht (budget {budget} requests)')
+    used = found = 0
+    try:
+        for r in todo[:budget]:   # nieuwste eerst
+            used += 1
+            r['traktSlug'] = trakt_slug(r['tmdbId'], client_id)
+            found += r['traktSlug'] is not None
+    except TraktStop as e:
+        print(f'Trakt: gestopt — {e}')
+    except (URLError, TimeoutError, ValueError) as e:
+        print(f'Trakt: gestopt — netwerkfout: {e}')
+    print(f'Trakt: {used} requests, {found} gevonden')
+
+
 def main():
     reviews, complete, last_updated = load()
     before = json.dumps(reviews, sort_keys=True)
@@ -574,6 +622,13 @@ def main():
             lookup_tmdb(reviews, api_key)
         else:
             print('TMDB: overgeslagen — TMDB_API_KEY is niet ingesteld')
+
+    if '--trakt' in sys.argv:
+        client_id = os.environ.get('TRAKT_CLIENT_ID', '').strip()
+        if client_id:
+            lookup_trakt(reviews, client_id)
+        else:
+            print('Trakt: overgeslagen — TRAKT_CLIENT_ID is niet ingesteld')
 
     if '--justwatch' in sys.argv:
         lookup_justwatch(reviews)

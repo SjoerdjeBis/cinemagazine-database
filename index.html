@@ -371,7 +371,9 @@
     th.c-rating, td.c-rating { width: 72px; }
     th.c-imdb,   td.c-imdb   { width: 110px; }
     th.c-added,  td.c-added  { width: 110px; }
-    th.c-jw,     td.c-jw     { width: 150px; }
+    th.c-jw,     td.c-jw     { width: 200px; }
+    td.c-jw { white-space: nowrap; }
+    td.c-jw > * + * { margin-left: 8px; }
 
     .t-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .t-title {
@@ -458,9 +460,24 @@
       white-space: nowrap;
     }
     .jw-search { font-size: 0.82rem; font-weight: 600; color: var(--jw); white-space: nowrap; }
+    .trakt-btn {
+      display: inline-flex;
+      align-items: center;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--ink);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
     .jw-none { font-size: 0.82rem; color: var(--faint); white-space: nowrap; }
     @media (hover: hover) and (pointer: fine) {
       .jw-btn:hover { background: var(--jw); color: var(--surface); }
+      .trakt-btn:hover { border-color: var(--ink); }
     }
 
     .status {
@@ -659,6 +676,8 @@
       .imdb-votes { display: none; }
       .m-lbl { display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-2); }
       .jw-btn { height: auto; padding: 0; border: none; }
+      .trakt-btn { height: 28px; padding: 0 8px; }
+      td.c-jw > * + * { margin-left: 12px; }
       .to-top { right: 16px; bottom: 16px; }
     }
 
@@ -861,6 +880,12 @@ function jwUrl(r) {
   if (r.jwPath) return `https://www.justwatch.com${r.jwPath}`;
   if (r.jwPath === '') return null;
   return `https://www.justwatch.com/nl/search?q=${encodeURIComponent(cleanTitle(r.title))}`;
+}
+
+// Trakt-pagina als de scraper die vond, anders zoeken op titel (zonder jaartal)
+function traktUrl(r) {
+  if (r.traktSlug) return `https://app.trakt.tv/movies/${encodeURIComponent(r.traktSlug)}`;
+  return `https://app.trakt.tv/search?q=${encodeURIComponent(cleanTitle(r.title))}`;
 }
 
 function badgeClass(r) {
@@ -1096,6 +1121,9 @@ function rowHtml(r) {
     } else {
       jw = `<a class="jw-search" href="${esc(jwUrl(r))}" target="_blank" rel="noopener">Zoek op JustWatch</a>`;
     }
+    jw += `<a class="trakt-btn press" href="${esc(traktUrl(r))}" target="_blank" rel="noopener"
+             title="${r.traktSlug ? 'Op je Trakt-watchlist zetten' : 'Zoeken op Trakt'}"
+             aria-label="${esc(cleanTitle(r.title))} op Trakt${r.traktSlug ? '' : ' zoeken'}">+ Trakt</a>`;
   }
 
   const info = r.plot
