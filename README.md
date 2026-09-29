@@ -25,6 +25,8 @@ Live: https://sjoerdjebis.github.io/cinemagazine-database/
 - De GitHub Action `.github/workflows/update-data.yml` draait dit dagelijks en commit de nieuwe data naar `main`,
   waarna GitHub Pages de site bijwerkt. Handmatig starten kan via *Actions → Recensies bijwerken → Run workflow*.
 - `index.html` is een statische pagina zonder build-stap.
+  Klik je op een cijfer, dan opent `recensie.html`: de Cinemagazine-recensie in een kader, met een balk
+  erboven naar Trakt en JustWatch. `links.js` bevat de linklogica die beide pagina's delen.
 
 ## Lokaal
 

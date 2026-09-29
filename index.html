@@ -814,6 +814,7 @@
 <div id="tip" class="hidden" role="tooltip"></div>
 <button type="button" class="to-top press" id="to-top">↑ Naar boven</button>
 
+<script src="links.js"></script>
 <script>
 'use strict';
 
@@ -857,43 +858,11 @@ function norm(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 const nl  = n => n.toLocaleString('nl-NL');
-const dec = n => String(n).replace('.', ',');
 
 function fmtDate(iso) {
   const [y, m, d] = iso.slice(0, 10).split('-');
   return `${parseInt(d, 10)} ${NL_MONTHS[parseInt(m, 10) - 1]} ${y}`;
-}
-
-function cleanTitle(title) {
-  return title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
-}
-
-// Directe link als de scraper de JustWatch-pagina vond ('' = niet te zien in NL),
-// anders zoeken op titel. Geen jaartal in de zoekopdracht: dat wijkt soms af
-// en maakt de zoekresultaten van JustWatch slechter.
-function jwUrl(r) {
-  if (r.jwPath) return `https://www.justwatch.com${r.jwPath}`;
-  if (r.jwPath === '') return null;
-  return `https://www.justwatch.com/nl/search?q=${encodeURIComponent(cleanTitle(r.title))}`;
-}
-
-// Trakt-pagina als de scraper die vond, anders zoeken op titel (zonder jaartal)
-function traktUrl(r) {
-  if (r.traktSlug) return `https://app.trakt.tv/movies/${encodeURIComponent(r.traktSlug)}`;
-  return `https://app.trakt.tv/search?q=${encodeURIComponent(cleanTitle(r.title))}`;
-}
-
-function badgeClass(r) {
-  if (r === null) return 'b-none';
-  if (r >= 4.5)  return 'b-top';
-  if (r >= 3.5)  return 'b-high';
-  if (r >= 2.5)  return 'b-mid';
-  return 'b-low';
 }
 
 // Begin van een periode; 'w', '1m', '3m', 'jaar'. Oude links: 'd30', '2026-09', 'y2026'.
@@ -1137,7 +1106,7 @@ function rowHtml(r) {
       ${meta ? `<div class="t-meta">${esc(meta)}</div>` : ''}
       ${plot}
     </td>
-    <td class="c-rating"><a class="badge press ${badgeClass(r.rating)}" href="${esc(r.url)}" target="_blank" rel="noopener"
+    <td class="c-rating"><a class="badge press ${badgeClass(r.rating)}" href="recensie.html?id=${r.id}" target="_blank"
       aria-label="Lees de recensie van ${esc(title)}${r.rating === null ? '' : `, cijfer ${dec(r.rating)}`}" title="Lees de recensie">${r.rating === null ? '–' : dec(r.rating)}</a></td>
     <td class="c-imdb"><span class="m-lbl">IMDb</span>${imdb}</td>
     <td class="c-added">${fmtDate(r.date)}</td>
