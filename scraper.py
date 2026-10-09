@@ -23,6 +23,7 @@ import os
 import re
 import sys
 import time
+import traceback
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
@@ -222,10 +223,10 @@ def omdb_query(title, year, api_key):
     req = Request(f'{OMDB_URL}?{urlencode(params)}', headers={'User-Agent': USER_AGENT})
     try:
         with urlopen(req, timeout=20) as resp:
-            data = json.loads(resp.read())
+            data = json.loads(resp.read(), strict=False)   # OMDb-teksten bevatten soms tabs
     except HTTPError as e:   # OMDb geeft 401 bij ongeldige sleutel / limiet
         try:
-            data = json.loads(e.read())
+            data = json.loads(e.read(), strict=False)
         except ValueError:
             raise OmdbStop(f'HTTP {e.code}')
     if data.get('Response') == 'True':
@@ -609,45 +610,50 @@ def lookup_trakt(reviews, client_id, budget=TRAKT_BUDGET):
     print(f'Trakt: {used} requests, {found} gevonden')
 
 
+def run_step(name, fn, *args):
+    """Eén stap mag de rest niet tegenhouden: fout melden, verder met de volgende.
+    De '::warning::'-regel maakt er een zichtbare waarschuwing van op GitHub."""
+    try:
+        fn(*args)
+        return True
+    except Exception as e:
+        print(f'{name}: mislukt — {type(e).__name__}: {e}')
+        print(f'::warning title={name} mislukt::{type(e).__name__}: {e}')
+        traceback.print_exc()
+        return False
+
+
+def with_key(env, name, fn, *args):
+    key = os.environ.get(env, '').strip()
+    if not key:
+        print(f'{name}: overgeslagen — {env} is niet ingesteld')
+        return True
+    return run_step(name, fn, *args, key)
+
+
 def main():
     reviews, complete, last_updated = load()
     before = json.dumps(reviews, sort_keys=True)
 
     new_found = scrape(reviews, complete)
 
+    ok = True
     if '--imdb' in sys.argv:
-        api_key = os.environ.get('OMDB_API_KEY', '').strip()
-        if api_key:
-            lookup_imdb_ids(reviews, api_key)
-        else:
-            print('IMDb-nummers: overgeslagen — OMDB_API_KEY is niet ingesteld')
-        try:
-            update_imdb_ratings(reviews)
-        except (URLError, OSError, ValueError) as e:
-            print(f'IMDb-scores: overgeslagen — {e}')
-
+        ok &= with_key('OMDB_API_KEY', 'IMDb-nummers', lookup_imdb_ids, reviews)
+        ok &= run_step('IMDb-scores', update_imdb_ratings, reviews)
     if '--tmdb' in sys.argv:
-        api_key = os.environ.get('TMDB_API_KEY', '').strip()
-        if api_key:
-            lookup_tmdb(reviews, api_key)
-        else:
-            print('TMDB: overgeslagen — TMDB_API_KEY is niet ingesteld')
-
+        ok &= with_key('TMDB_API_KEY', 'TMDB', lookup_tmdb, reviews)
     if '--trakt' in sys.argv:
-        client_id = os.environ.get('TRAKT_CLIENT_ID', '').strip()
-        if client_id:
-            lookup_trakt(reviews, client_id)
-        else:
-            print('Trakt: overgeslagen — TRAKT_CLIENT_ID is niet ingesteld')
-
+        ok &= with_key('TRAKT_CLIENT_ID', 'Trakt', lookup_trakt, reviews)
     if '--justwatch' in sys.argv:
-        lookup_justwatch(reviews)
+        ok &= run_step('JustWatch', lookup_justwatch, reviews)
 
     # Datum alleen verversen als er nieuwe recensies zijn
     changed = json.dumps(reviews, sort_keys=True) != before
     save(reviews, complete=True, last_updated=None if new_found else last_updated)
     print(f'\nKlaar! {len(reviews)} recensies in {OUTPUT}'
-          + ('' if changed else ' (geen wijzigingen)'))
+          + ('' if changed else ' (geen wijzigingen)')
+          + ('' if ok else ' — met waarschuwingen, zie hierboven'))
 
 
 if __name__ == '__main__':
