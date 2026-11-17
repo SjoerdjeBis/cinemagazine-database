@@ -1,0 +1,3 @@
+{
+  "_uitleg": "Handmatige koppelingen: recensie-id → TMDB-nummer (te vinden in de URL op themoviedb.org), of null als de film niet op TMDB staat. Mag ook {\"tmdb\": 123, \"waarom\": \"...\"}. Gaat altijd voor de automatische koppeling."
+}

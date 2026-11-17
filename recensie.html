@@ -23,7 +23,6 @@
       --faint:   #9A9385;
       --border:  #CFC8B8;
       --accent:  #A51D2A;
-      --jw:      #1B3A6B;
       --b-top:   #1D6B39;
       --b-high:  #37803F;
       --b-mid:   #A4561A;
@@ -43,7 +42,6 @@
         --faint:   #6F695E;
         --border:  #3B362D;
         --accent:  #E35D68;
-        --jw:      #8FB0E8;
         --b-none-bg: #2F2B24;
         --b-none-fg: #A9A294;
       }
@@ -141,13 +139,9 @@
     }
     .btn:active { transform: scale(0.97); }
     .btn.trakt { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-    .btn.jw { border-color: var(--jw); color: var(--jw); }
-    .btn.muted { border-style: dashed; color: var(--faint); cursor: default; }
     @media (hover: hover) and (pointer: fine) {
       .btn:hover { border-color: var(--ink); }
       .btn.trakt:hover { opacity: 0.88; }
-      .btn.jw:hover { background: var(--jw); color: var(--surface); }
-      .btn.muted:hover { border-color: var(--border); }
     }
 
     /* ---- Recensie ---- */
@@ -166,7 +160,7 @@
       .home span { display: none; }
       .film { grid-area: film; }
       .t { font-size: 1.1rem; }
-      .actions { grid-area: actions; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .actions { grid-area: actions; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .btn { padding: 0 8px; font-size: 0.8rem; }
     }
     @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
@@ -186,8 +180,8 @@
 <script>
 'use strict';
 
-// De Cinemagazine-recensie van ?id=… in een kader, met een balk erboven naar Trakt
-// en JustWatch. Cinemagazine blokkeert inladen in een kader nu niet; doen ze dat
+// De Cinemagazine-recensie van ?id=… in een kader, met een balk erboven naar Trakt.
+// Cinemagazine blokkeert inladen in een kader nu niet; doen ze dat
 // ooit wel, dan blijft de knop 'Cinemagazine ↗' de recensie gewoon openen.
 (async () => {
   const id  = Number(new URLSearchParams(location.search).get('id'));
@@ -211,14 +205,9 @@
       <span class="badge ${badgeClass(r.rating)}" aria-label="Cinemagazine-cijfer ${r.rating === null ? 'onbekend' : dec(r.rating)}">${r.rating === null ? '–' : dec(r.rating)}</span>
       <div style="min-width:0"><div class="t">${esc(title)}</div>${meta ? `<div class="meta">${esc(meta)}</div>` : ''}</div>`;
 
-    const jw = jwUrl(r);
     document.getElementById('actions').innerHTML = `
       <a class="btn trakt" href="${esc(traktUrl(r))}" target="_blank" rel="noopener"
          title="${r.traktSlug ? 'Op je Trakt-watchlist zetten' : 'Zoeken op Trakt'}">+ Trakt</a>
-      ${jw
-        ? `<a class="btn jw" href="${esc(jw)}" target="_blank" rel="noopener">
-             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>JustWatch</a>`
-        : '<span class="btn muted" title="JustWatch kent deze film, maar hij is in Nederland nergens te zien">Niet in NL</span>'}
       <a class="btn" href="${esc(r.url)}" target="_blank" rel="noopener" title="Open de recensie op cinemagazine.nl">Cinemagazine ↗</a>`;
 
     const frame = document.createElement('iframe');

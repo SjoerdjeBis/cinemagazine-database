@@ -26,7 +26,6 @@
       --rule:        #DDD6C6;
       --accent:      #A51D2A;
       --accent-ink:  #FFFFFF;
-      --jw:          #1B3A6B;
       --star:        #C08A1E;
       --tip-bg:      #1B1915;
       --tip-fg:      #F4F1EA;
@@ -61,7 +60,6 @@
         --rule:        #2C2822;
         --accent:      #E35D68;
         --accent-ink:  #1A0A0C;
-        --jw:          #8FB0E8;
         --star:        #D9A53A;
         --tip-bg:      #EDE8DD;
         --tip-fg:      #15130F;
@@ -312,7 +310,7 @@
       .chips button:not([aria-pressed="true"]):hover { border-color: var(--ink); }
       .seg button:not([aria-pressed="true"]):hover { background: var(--paper); }
       .active button:hover, .f-done:hover, .m-filters:hover, .to-top:hover { opacity: 0.85; }
-      .reset:not(:disabled):hover, .link-btn:hover, .jw-search:hover { text-decoration-thickness: 2px; }
+      .reset:not(:disabled):hover, .link-btn:hover { text-decoration-thickness: 2px; }
     }
 
     /* ---- Resultaten ---- */
@@ -374,9 +372,8 @@
     th.c-rating, td.c-rating { width: 72px; }
     th.c-imdb,   td.c-imdb   { width: 110px; }
     th.c-added,  td.c-added  { width: 110px; }
-    th.c-jw,     td.c-jw     { width: 200px; }
-    td.c-jw { white-space: nowrap; }
-    td.c-jw > * + * { margin-left: 8px; }
+    th.c-trakt,  td.c-trakt  { width: 100px; }
+    td.c-trakt { white-space: nowrap; }
 
     .t-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .t-title {
@@ -448,21 +445,6 @@
     .m-lbl { display: none; }
     td.c-added { font-size: 0.875rem; color: var(--muted); white-space: nowrap; }
 
-    .jw-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      height: 36px;
-      padding: 0 12px;
-      border: 1px solid var(--jw);
-      border-radius: 6px;
-      color: var(--jw);
-      font-size: 0.82rem;
-      font-weight: 600;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .jw-search { font-size: 0.82rem; font-weight: 600; color: var(--jw); white-space: nowrap; }
     .trakt-btn {
       display: inline-flex;
       align-items: center;
@@ -477,9 +459,7 @@
       white-space: nowrap;
       vertical-align: middle;
     }
-    .jw-none { font-size: 0.82rem; color: var(--faint); white-space: nowrap; }
     @media (hover: hover) and (pointer: fine) {
-      .jw-btn:hover { background: var(--jw); color: var(--surface); }
       .trakt-btn:hover { border-color: var(--ink); }
     }
 
@@ -647,7 +627,7 @@
       tbody tr {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) 48px 48px;
-        grid-template-areas: "film film rating imdb" "added jw jw jw";
+        grid-template-areas: "film film rating imdb" "added trakt trakt trakt";
         column-gap: 10px;
         row-gap: 10px;
         padding: 14px 0;
@@ -669,7 +649,7 @@
         border: 1px solid var(--rule);
         border-radius: 6px;
       }
-      td.c-jw { grid-area: jw; align-self: center; }
+      td.c-trakt { grid-area: trakt; align-self: center; }
       td.c-added { grid-area: added; align-self: center; font-size: 0.82rem; }
       .t-title { font-size: 1.12rem; }
       .t-meta { font-size: 0.82rem; }
@@ -677,9 +657,7 @@
       .imdb-score { font-size: 0.95rem; line-height: 1.1; }
       .imdb-votes { display: none; }
       .m-lbl { display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-2); }
-      .jw-btn { height: auto; padding: 0; border: none; }
       .trakt-btn { height: 28px; padding: 0 8px; }
-      td.c-jw > * + * { margin-left: 12px; }
       .to-top { right: 16px; bottom: 16px; }
     }
 
@@ -1083,17 +1061,9 @@ function rowHtml(r) {
     imdb = `<a class="imdb-score imdb-none" href="https://www.imdb.com/title/${esc(r.imdbId)}/" target="_blank" rel="noopener" title="Nog geen IMDb-score">n.b.</a>`;
   }
 
-  let jw = '';
+  let trakt = '';
   if (r.rating !== null && r.rating >= 4) {
-    if (r.jwPath) {
-      jw = `<a class="jw-btn press" href="${esc(jwUrl(r))}" target="_blank" rel="noopener">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>JustWatch</a>`;
-    } else if (r.jwPath === '') {
-      jw = '<span class="jw-none" title="JustWatch kent deze film, maar hij is in Nederland nergens te zien">Niet in NL</span>';
-    } else {
-      jw = `<a class="jw-search" href="${esc(jwUrl(r))}" target="_blank" rel="noopener">Zoek op JustWatch</a>`;
-    }
-    jw += `<a class="trakt-btn press" href="${esc(traktUrl(r))}" target="_blank" rel="noopener"
+    trakt = `<a class="trakt-btn press" href="${esc(traktUrl(r))}" target="_blank" rel="noopener"
              title="${r.traktSlug ? 'Op je Trakt-watchlist zetten' : 'Zoeken op Trakt'}"
              aria-label="${esc(cleanTitle(r.title))} op Trakt${r.traktSlug ? '' : ' zoeken'}">+ Trakt</a>`;
   }
@@ -1113,7 +1083,7 @@ function rowHtml(r) {
       aria-label="Lees de recensie van ${esc(title)}${r.rating === null ? '' : `, cijfer ${dec(r.rating)}`}" title="Lees de recensie">${r.rating === null ? '–' : dec(r.rating)}</a></td>
     <td class="c-imdb"><span class="m-lbl">IMDb</span>${imdb}</td>
     <td class="c-added">${fmtDate(r.date)}</td>
-    <td class="c-jw">${jw}</td>
+    <td class="c-trakt">${trakt}</td>
   </tr>`;
 }
 
@@ -1154,7 +1124,7 @@ function render() {
       <th class="c-rating" title="Klik op het cijfer voor de recensie">Cijfer</th>
       <th class="c-imdb">IMDb</th>
       <th class="c-added">Toegevoegd</th>
-      <th class="c-jw">Kijken</th>
+      <th class="c-trakt">Trakt</th>
     </tr></thead>
     <tbody></tbody>
   </table>

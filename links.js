@@ -1,5 +1,5 @@
 'use strict';
-// Gedeeld door index.html en recensie.html: links naar Trakt en JustWatch,
+// Gedeeld door index.html en recensie.html: de link naar Trakt,
 // cijferkleuren en kleine opmaakhulpjes.
 
 function esc(s) {
@@ -10,15 +10,6 @@ const dec = n => String(n).replace('.', ',');
 
 function cleanTitle(title) {
   return title.replace(/\s*\(\d{4}\)[^(]*$/, '').trim();
-}
-
-// Directe link als de scraper de JustWatch-pagina vond ('' = niet te zien in NL),
-// anders zoeken op titel. Geen jaartal in de zoekopdracht: dat wijkt soms af
-// en maakt de zoekresultaten van JustWatch slechter.
-function jwUrl(r) {
-  if (r.jwPath) return `https://www.justwatch.com${r.jwPath}`;
-  if (r.jwPath === '') return null;
-  return `https://www.justwatch.com/nl/search?q=${encodeURIComponent(cleanTitle(r.title))}`;
 }
 
 // Trakt-pagina als de scraper die vond, anders zoeken op titel (zonder jaartal)

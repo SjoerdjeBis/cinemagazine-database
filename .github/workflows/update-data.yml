@@ -23,12 +23,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Nieuwe recensies, IMDb-scores, TMDB-info, Trakt- en JustWatch-links ophalen
+      - name: Nieuwe recensies, TMDB-koppeling, IMDb-scores en Trakt-links ophalen
         env:
-          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
-        run: python3 scraper.py --imdb --tmdb --trakt --justwatch
+        run: python3 scraper.py --tmdb --imdb --trakt
 
       - name: Wijzigingen committen
         run: |
