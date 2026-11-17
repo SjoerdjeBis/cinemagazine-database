@@ -12,8 +12,10 @@ Live: https://sjoerdjebis.github.io/cinemagazine-database/
   [ratings-dataset](https://developer.imdb.com/non-commercial-datasets/), zodat ze gelijk zijn aan wat IMDb toont.
   OMDb-scores worden niet gebruikt: die bleken vaak verouderd of leeg.
 - Met `--tmdb` haalt hij genres en een beschrijving van twee zinnen op bij [TMDB](https://www.themoviedb.org)
-  (Nederlands als die er is, anders Engels; max. 3000 requests per run). Koppeling via het IMDb-nummer, of anders
-  op titel met het jaar max. 1 jaar ernaast. De beschrijvingen staan apart in `data/plots.json`, zodat
+  (Nederlands als die er is, anders Engels; max. 3000 requests per run). Koppeling via het IMDb-nummer als titel en
+  jaar van die film kloppen, of anders op titel met het jaar max. 1 jaar ernaast. Het IMDb-nummer dat TMDB bij de
+  film heeft vervangt of vult dat van OMDb aan: OMDb zoekt vaag op titel en koppelde soms een andere film met
+  hetzelfde jaar. De IMDb-scores worden daarom pas ná deze stap opgehaald. De beschrijvingen staan apart in `data/plots.json`, zodat
   `reviews.json` klein blijft; de site laadt ze pas nadat de tabel er staat.
 - Met `--trakt` zoekt hij voor films met 4+ sterren de Trakt-pagina op via het TMDB-nummer (gratis
   [Trakt-API](https://trakt.docs.apiary.io); max. 900 requests per run). Op de site linkt de knop **+ Trakt** daarheen,

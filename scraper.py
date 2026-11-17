@@ -72,7 +72,7 @@ def is_review(link):
     return bool(re.search(r'-recensie/?$', link))
 
 
-def fetch_page(page, retries=3):
+def fetch_page(page, retries=5):
     url = (f'{BASE_URL}?per_page={PER_PAGE}&_fields={FIELDS}'
            f'&orderby=date&order=desc&page={page}')
     req = Request(url, headers={'User-Agent': USER_AGENT})
@@ -83,9 +83,10 @@ def fetch_page(page, retries=3):
                 pages = int(resp.headers.get('X-WP-TotalPages', 1))
                 posts = json.loads(resp.read())
             return posts, total, pages
-        except (URLError, HTTPError) as e:
+        # ValueError: de site gaf soms een lege of HTML-pagina i.p.v. JSON
+        except (URLError, HTTPError, TimeoutError, ValueError) as e:
             if attempt < retries - 1:
-                wait = 2 ** attempt
+                wait = 5 * 2 ** attempt
                 print(f'\n  Fout: {e} — wacht {wait}s en probeer opnieuw...')
                 time.sleep(wait)
             else:
@@ -493,14 +494,26 @@ def tmdb_year(hit):
     return int(m.group(1)) if m else None
 
 
+def tmdb_title_ok(hit, title):
+    names = {simplify(hit.get('title') or ''), simplify(hit.get('original_title') or '')}
+    return any(simplify(t) in names for t in imdb_candidates(title))
+
+
 def tmdb_find(r, api_key):
-    """Geeft (TMDB-film of None, gebruikte requests)."""
+    """Geeft (TMDB-film of None, gebruikte requests).
+
+    Het IMDb-nummer van OMDb is niet altijd juist (OMDb zoekt vaag op titel),
+    dus de film die erbij hoort telt alleen als titel én jaar kloppen. Anders eerst
+    zelf op titel zoeken, en pas als dat niets oplevert die film toch nemen."""
+    used, year, fallback = 0, r['filmYear'], None
     if r.get('imdbId'):
+        used += 1
         data = tmdb_get(f"/find/{r['imdbId']}", api_key,
                         external_source='imdb_id', language='nl-NL') or {}
         hits = data.get('movie_results') or []
-        return (hits[0] if hits else None), 1
-    used, year = 0, r['filmYear']
+        if hits and tmdb_title_ok(hits[0], r['title']) and (not year or tmdb_year(hits[0]) == year):
+            return hits[0], used
+        fallback = hits[0] if hits else None
     # Ook in het Engels: zonder NL-titel toont TMDB de originele, soms in een ander schrift
     for t in imdb_candidates(r['title']):
         for lang in ('nl-NL', 'en-US'):
@@ -515,7 +528,7 @@ def tmdb_find(r, api_key):
                         hit = dict(tmdb_get(f"/movie/{hit['id']}", api_key, language='nl-NL') or hit,
                                    genre_ids=hit.get('genre_ids', []))
                     return hit, used
-    return None, used
+    return fallback, used
 
 
 def tmdb_genre_names(api_key):
@@ -529,6 +542,16 @@ def tmdb_fill(r, api_key, names):
     r['tmdbId'] = hit['id'] if hit else None
     if not hit:
         return used
+    # TMDB's IMDb-nummer is betrouwbaarder dan dat van OMDb, en vult het aan
+    # waar OMDb niets vond (vaak bij Nederlandse of anderstalige titels)
+    imdb_id = hit.get('imdb_id')
+    if 'imdb_id' not in hit:
+        used += 1
+        imdb_id = (tmdb_get(f"/movie/{hit['id']}/external_ids", api_key) or {}).get('imdb_id')
+    if imdb_id and imdb_id != r.get('imdbId'):
+        if r.get('imdbId'):
+            print(f"  IMDb-nummer {r['title']}: {r['imdbId']} → {imdb_id} (volgens TMDB)")
+        r['imdbId'] = imdb_id
     r['genres'] = [names[g] for g in hit.get('genre_ids', []) if g in names]
     overview = hit.get('overview') or ''
     if not overview:   # geen Nederlandse tekst: dan de Engelse
@@ -640,9 +663,10 @@ def main():
     ok = True
     if '--imdb' in sys.argv:
         ok &= with_key('OMDB_API_KEY', 'IMDb-nummers', lookup_imdb_ids, reviews)
-        ok &= run_step('IMDb-scores', update_imdb_ratings, reviews)
-    if '--tmdb' in sys.argv:
+    if '--tmdb' in sys.argv:   # kan IMDb-nummers verbeteren, dus vóór de scores
         ok &= with_key('TMDB_API_KEY', 'TMDB', lookup_tmdb, reviews)
+    if '--imdb' in sys.argv:
+        ok &= run_step('IMDb-scores', update_imdb_ratings, reviews)
     if '--trakt' in sys.argv:
         ok &= with_key('TRAKT_CLIENT_ID', 'Trakt', lookup_trakt, reviews)
     if '--justwatch' in sys.argv:
