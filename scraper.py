@@ -42,6 +42,8 @@ OMDB_URL    = 'https://www.omdbapi.com/'
 OMDB_BUDGET = 900   # max. OMDb-requests per run (gratis limiet: 1000 per dag)
 OMDB_DELAY  = 0.15
 IMDB_RATINGS_URL = 'https://datasets.imdbws.com/title.ratings.tsv.gz'   # dagelijks bijgewerkt
+IMDB_BASICS_URL  = 'https://datasets.imdbws.com/title.basics.tsv.gz'    # titel, jaar en soort per IMDb-nummer
+IMDB_TYPE_SCORE  = {'movie': 2, 'tvMovie': 1, 'video': 1}   # korte films, series e.d.: 0
 
 JW_URL        = 'https://apis.justwatch.com/graphql'
 JW_BUDGET     = 1500   # max. JustWatch-requests per run
@@ -285,21 +287,27 @@ def lookup_imdb_ids(reviews, api_key, budget=OMDB_BUDGET):
     print(f'IMDb-nummers: {used} requests, {found} gevonden')
 
 
+def imdb_dataset(url, wanted):
+    """Regels uit een IMDb-dataset voor de gevraagde nummers, als {nummer: kolommen}."""
+    rows = {}
+    req = Request(url, headers={'User-Agent': USER_AGENT})
+    with urlopen(req, timeout=120) as resp, \
+         gzip.open(resp, mode='rt', encoding='utf-8') as f:
+        next(f)   # kopregel
+        for line in f:
+            tconst, rest = line.rstrip('\n').split('\t', 1)
+            if tconst in wanted:
+                rows[tconst] = rest.split('\t')
+    return rows
+
+
 def update_imdb_ratings(reviews):
     """Zet de actuele IMDb-score en het aantal stemmen bij elke gekoppelde film."""
     wanted = {r['imdbId'] for r in reviews if r.get('imdbId')}
     if not wanted:
         return
     print(f'IMDb-scores: dataset ophalen voor {len(wanted)} films...')
-    ratings = {}
-    req = Request(IMDB_RATINGS_URL, headers={'User-Agent': USER_AGENT})
-    with urlopen(req, timeout=120) as resp, \
-         gzip.open(resp, mode='rt', encoding='utf-8') as f:
-        next(f)   # kopregel: tconst, averageRating, numVotes
-        for line in f:
-            tconst, avg, votes = line.rstrip('\n').split('\t')
-            if tconst in wanted:
-                ratings[tconst] = (float(avg), int(votes))
+    ratings = {k: (float(avg), int(votes)) for k, (avg, votes) in imdb_dataset(IMDB_RATINGS_URL, wanted).items()}
     if len(ratings) < len(wanted) * 0.5:
         # Onverwacht weinig treffers: liever niets aanpassen dan scores wissen
         print(f'IMDb-scores: slechts {len(ratings)} treffers — overgeslagen')
@@ -536,22 +544,14 @@ def tmdb_genre_names(api_key):
     return {g['id']: g['name'] for g in genres.get('genres', [])}
 
 
-def tmdb_fill(r, api_key, names):
-    """Zoekt één film op en vult tmdbId, genres en plot. Geeft het aantal requests."""
-    hit, used = tmdb_find(r, api_key)
+def tmdb_apply(r, hit, api_key, names):
+    """Zet tmdbId, genres en plot van deze TMDB-film. Geeft het aantal requests."""
     r['tmdbId'] = hit['id'] if hit else None
+    r.pop('genres', None)
+    r.pop('plot', None)
     if not hit:
-        return used
-    # TMDB's IMDb-nummer is betrouwbaarder dan dat van OMDb, en vult het aan
-    # waar OMDb niets vond (vaak bij Nederlandse of anderstalige titels)
-    imdb_id = hit.get('imdb_id')
-    if 'imdb_id' not in hit:
-        used += 1
-        imdb_id = (tmdb_get(f"/movie/{hit['id']}/external_ids", api_key) or {}).get('imdb_id')
-    if imdb_id and imdb_id != r.get('imdbId'):
-        if r.get('imdbId'):
-            print(f"  IMDb-nummer {r['title']}: {r['imdbId']} → {imdb_id} (volgens TMDB)")
-        r['imdbId'] = imdb_id
+        return 0
+    used = 0
     r['genres'] = [names[g] for g in hit.get('genre_ids', []) if g in names]
     overview = hit.get('overview') or ''
     if not overview:   # geen Nederlandse tekst: dan de Engelse
@@ -560,6 +560,73 @@ def tmdb_fill(r, api_key, names):
     if overview:
         r['plot'] = first_sentences(overview)
     return used
+
+
+def tmdb_fill(r, api_key, names):
+    """Zoekt één film op en vult tmdbId, genres en plot. Geeft het aantal requests.
+
+    Heeft TMDB een ander IMDb-nummer dan OMDb (of OMDb vond niets), dan komen
+    beide in 'imdbCandidates'; pick_imdb kiest daarna met IMDb's eigen gegevens."""
+    hit, used = tmdb_find(r, api_key)
+    used += tmdb_apply(r, hit, api_key, names)
+    if not hit:
+        return used
+    imdb_id = hit.get('imdb_id')
+    if 'imdb_id' not in hit:
+        used += 1
+        imdb_id = (tmdb_get(f"/movie/{hit['id']}/external_ids", api_key) or {}).get('imdb_id')
+    if imdb_id and imdb_id != r.get('imdbId'):
+        r['imdbCandidates'] = [x for x in (r.get('imdbId'), imdb_id) if x]
+    return used
+
+
+def imdb_score(r, info):
+    """Hoe goed een IMDb-titel bij de recensie past; None = jaar te ver weg."""
+    kind, primary, original, year = info
+    if year and r['filmYear'] and abs(year - r['filmYear']) > 1:
+        return None
+    titles = {simplify(t) for t in imdb_candidates(r['title'])}
+    score = 2 if titles & {simplify(primary), simplify(original)} else 0
+    score += 1 if not (year and r['filmYear']) else 2 - abs(year - r['filmYear'])
+    return score + IMDB_TYPE_SCORE.get(kind, 0)
+
+
+def pick_imdb(reviews, api_key, names):
+    """Kiest bij twijfel tussen OMDb en TMDB het IMDb-nummer waarvan titel, jaar
+    en soort (film, korte film, video...) het best passen, volgens IMDb zelf;
+    met minstens 10x zoveel stemmen telt extra (de echte film i.p.v. een
+    gelijknamige making-of). Valt de keus op een andere film dan die van TMDB,
+    dan wordt de TMDB-info via het gekozen nummer opnieuw opgehaald."""
+    todo = [r for r in reviews if r.get('imdbCandidates')]
+    if not todo:
+        return
+    wanted = {c for r in todo for c in r['imdbCandidates']}
+    print(f'IMDb-keuze: {len(todo)} films, titelgegevens ophalen...')
+    info = {k: (c[0], c[1], c[2], int(c[4]) if c[4].isdigit() else None)
+            for k, c in imdb_dataset(IMDB_BASICS_URL, wanted).items()}
+    votes = {k: int(c[1]) for k, c in imdb_dataset(IMDB_RATINGS_URL, wanted).items()}
+    changed = 0
+    for r in todo:
+        cands = r.pop('imdbCandidates')
+        scored = [(imdb_score(r, info[c]), i, c) for i, c in enumerate(cands) if c in info]
+        scored = [x for x in scored if x[0] is not None]
+        if len(scored) == 2:
+            v = [votes.get(c, 0) for _, _, c in scored]
+            for j in (0, 1):
+                if v[j] >= 10 * max(v[1 - j], 1):
+                    scored[j] = (scored[j][0] + 2,) + scored[j][1:]
+        if not scored:
+            continue   # niets dat past: het OMDb-nummer (of geen) blijft staan
+        best = max(scored)[2]   # gelijke stand: de laatste, die van TMDB
+        if best == cands[-1]:
+            r['imdbId'] = best
+        else:   # OMDb had gelijk en TMDB koppelde een andere film
+            data = tmdb_get(f'/find/{best}', api_key, external_source='imdb_id', language='nl-NL') or {}
+            tmdb_apply(r, (data.get('movie_results') or [None])[0], api_key, names)
+            r.pop('traktSlug', None)
+            r['imdbId'] = best
+        changed += 1
+    print(f'IMDb-keuze: {changed} films bijgewerkt')
 
 
 def lookup_tmdb(reviews, api_key, budget=TMDB_BUDGET):
@@ -575,11 +642,15 @@ def lookup_tmdb(reviews, api_key, budget=TMDB_BUDGET):
             n = tmdb_fill(r, api_key, names)
             used += n
             found += bool(r['tmdbId'])
+        print(f'TMDB: {used} requests, {found} gevonden')
+        pick_imdb(reviews, api_key, names)
     except TmdbStop as e:
         print(f'TMDB: gestopt — {e}')
     except (URLError, TimeoutError, ValueError) as e:
         print(f'TMDB: gestopt — netwerkfout: {e}')
-    print(f'TMDB: {used} requests, {found} gevonden')
+    finally:
+        for r in reviews:   # nooit half afgehandelde keuzes opslaan
+            r.pop('imdbCandidates', None)
 
 
 # ─── Trakt ────────────────────────────────────────────────────────────────────
