@@ -40,7 +40,8 @@ from urllib.request import Request, urlopen
 
 BASE_URL  = 'https://www.cinemagazine.nl/wp-json/wp/v2/posts'
 FIELDS    = 'id,title,date,link,content'
-PER_PAGE  = 100
+PER_PAGE  = 100   # bij de dagelijkse run 20: lichter voor de site, en er zijn zelden meer nieuwe
+PER_PAGE_NEW = 20
 DELAY     = 0.4   # seconden tussen requests (wees beleefd)
 DATA_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 OUTPUT    = os.path.join(DATA_DIR, 'reviews.json')
@@ -87,8 +88,8 @@ def simplify(s):
     return re.sub(r'[^a-z0-9]', '', ''.join(c for c in s if not unicodedata.combining(c)))
 
 
-def fetch_page(page, retries=5):
-    url = (f'{BASE_URL}?per_page={PER_PAGE}&_fields={FIELDS}'
+def fetch_page(page, per_page=PER_PAGE, retries=7):
+    url = (f'{BASE_URL}?per_page={per_page}&_fields={FIELDS}'
            f'&orderby=date&order=desc&page={page}')
     req = Request(url, headers={'User-Agent': USER_AGENT})
     for attempt in range(retries):
@@ -102,7 +103,7 @@ def fetch_page(page, retries=5):
         # ValueError: de site gaf soms een lege of HTML-pagina i.p.v. JSON
         except (OSError, http.client.HTTPException, ValueError) as e:
             if attempt < retries - 1:
-                wait = 5 * 2 ** attempt
+                wait = min(5 * 2 ** attempt, 120)   # samen ruim 4 minuten
                 print(f'\n  Fout: {e} — wacht {wait}s en probeer opnieuw...')
                 time.sleep(wait)
             else:
@@ -223,7 +224,7 @@ def scrape(reviews, complete, full=False):
     page        = 1
     total_pages = 1
     while page <= total_pages:
-        posts, total, total_pages = fetch_page(page)
+        posts, total, total_pages = fetch_page(page, PER_PAGE_NEW if complete and not full else PER_PAGE)
         if page == 1:
             print(f'Totaal op de site: {total} posts ({total_pages} pagina\'s)\n')
 
