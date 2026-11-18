@@ -13,8 +13,8 @@ Gebruik:
 Eenmalig of bij twijfel:
     --full      de hele site opnieuw doorlopen: regisseur, speelduur, cijfer en
                 titel van bestaande recensies bijwerken
-    --rematch   alle films opnieuw aan TMDB koppelen (behalve handmatige
-                correcties), zonder budget en met meerdere verbindingen tegelijk
+    --rematch   alle films opnieuw aan TMDB koppelen, zonder budget en met
+                meerdere verbindingen tegelijk
 
 Na de eerste volledige run haalt het script alleen nog nieuwe recensies op:
 het stopt bij de eerste pagina waarop een al bekende recensie staat.
@@ -67,6 +67,8 @@ TRAKT_MAX_SECONDS = 600    # nooit langer dan 10 minuten, ook als Trakt ons laat
 # Velden die bij een (nieuwe) TMDB-koppeling horen
 MATCH_FIELDS = ('tmdbId', 'imdbId', 'imdb', 'imdbVotes', 'genres', 'plot',
                 'traktSlug', 'via', 'checked')
+
+YEAR_SLACK_SAME_DIRECTOR = 3   # jaar mag zoveel afwijken als de regisseur exact klopt
 
 YEAR_SUFFIX = re.compile(r'\s*\((\d{4})\)[^(]*$')
 
@@ -151,8 +153,9 @@ def load():
     # Opschonen van oudere data: HTML-entiteiten in titels, niet-recensies
     reviews = [dict(r, title=html.unescape(r['title']))
                for r in data.get('reviews', []) if is_review(r['url'])]
-    for r in reviews:
-        r.pop('jwPath', None)   # JustWatch wordt niet meer gebruikt
+    for r in reviews:   # JustWatch wordt niet meer gebruikt
+        r.pop('jwPath', None)
+        r.pop('jwChecked', None)
     if os.path.exists(PLOTS):
         with open(PLOTS, encoding='utf-8') as f:
             plots = json.load(f)
@@ -279,7 +282,8 @@ def urlopen_retry(req, retries=4):
 # genres en de beschrijving (Nederlands als die er is, anders Engels).
 #
 # Zoeken: eerst op titel (Nederlands, Engels en de losse delen van
-# 'NL titel – originele titel'), jaar max. 1 ernaast. Klopt bij geen van die
+# 'NL titel – originele titel'), jaar max. 1 ernaast (max. 3 als de regisseur
+# exact klopt: festivaljaar vs. releasejaar). Klopt bij geen van die
 # treffers de regisseur, dan via de films die de regisseur maakte; dat vindt
 # ook films die op TMDB een heel andere titel hebben. Zonder overeenkomende
 # regisseur alleen koppelen als er niets tegenspreekt (één treffer, of TMDB
@@ -352,23 +356,30 @@ def year_of(movie):
     return int(m.group(1)) if m else None
 
 
-def year_ok(movie, year):
+def year_ok(movie, year, slack=1):
     y = year_of(movie)
-    return not year or not y or abs(y - year) <= 1
+    return not year or not y or abs(y - year) <= slack
 
 
-def title_ok(movie, title):
-    names = {simplify(movie.get('title')), simplify(movie.get('original_title'))}
-    return any(simplify(t) in names for t in title_candidates(title))
+def title_ok(movie, title, loose=False):
+    """Titel gelijk; loose: of de ene titel bevat de andere (Piranha / Piranha 3D)."""
+    names = {simplify(movie.get('title')), simplify(movie.get('original_title'))} - {''}
+    for t in map(simplify, title_candidates(title)):
+        if t in names or (loose and len(t) >= 4 and any(t in n or n in t for n in names if len(n) >= 4)):
+            return True
+    return False
 
 
 def split_names(s):
     return [n for n in re.split(r'\s*(?:,|&|/|\+|\ben\b|\band\b)\s*', s or '') if simplify(n)]
 
 
-def same_person(a, b):
+def same_person(a, b, lenient=False):
     """Dezelfde naam, ook met andere spelling of volgorde (Zhang Yimou / Yimou
-    Zhang, Kore-eda / Koreeda, Zvjagintsev / Zvyagintsev)."""
+    Zhang, Kore-eda / Koreeda, Zvjagintsev / Zvyagintsev, Felipe Gálvez /
+    Felipe Gálvez Haberle). lenient: als titel en jaar al kloppen is een
+    gedeelde naam genoeg (Ji-Woon Kim / Kim Jee-woon, Zeke / Ezekiel Norton);
+    twee films met dezelfde titel hebben vrijwel nooit zulke regisseurs."""
     ta = [simplify(t) for t in re.split(r'[\s\-.]+', a) if simplify(t)]
     tb = [simplify(t) for t in re.split(r'[\s\-.]+', b) if simplify(t)]
     if not ta or not tb:
@@ -376,8 +387,12 @@ def same_person(a, b):
     ja, jb = ''.join(sorted(ta)), ''.join(sorted(tb))
     if ja == jb or simplify(a) == simplify(b):
         return True
-    if difflib.SequenceMatcher(None, ja, jb).ratio() >= 0.85:
+    ratio = difflib.SequenceMatcher(None, ja, jb).ratio()
+    small, big = sorted((set(ta), set(tb)), key=len)
+    if ratio >= 0.85 or (len(small) >= 2 and small <= big):
         return True
+    if lenient:
+        return ratio >= 0.7 or any(len(t) >= 3 for t in set(ta) & set(tb))
     # Alleen de achternaam overeenkomend (bv. 'J. Lee Thompson'), mits lang genoeg
     return len(ta[-1]) >= 4 and ta[-1] == tb[-1] and ta[0][0] == tb[0][0]
 
@@ -387,17 +402,40 @@ def directors_of(details):
             if c.get('job') == 'Director']
 
 
-def director_match(r, details):
+def director_match(r, details, lenient=False):
     """True/False, of None als een van beide geen regisseur kent."""
     ours, theirs = split_names(r.get('director')), directors_of(details)
     if not ours or not theirs:
         return None
-    return any(same_person(a, b) for a in ours for b in theirs)
+    return any(same_person(a, b, lenient) for a in ours for b in theirs)
 
 
 def tmdb_details(movie_id, api_key, budget):
-    return tmdb_get(f'/movie/{movie_id}', api_key, budget, language='nl-NL',
-                    append_to_response='credits,external_ids')
+    # In het Engels: in Nederlandstalige antwoorden staan namen soms in het
+    # oorspronkelijke schrift (宮崎駿 i.p.v. Hayao Miyazaki). De Nederlandse
+    # beschrijving komt uit de meegestuurde vertalingen.
+    return tmdb_get(f'/movie/{movie_id}', api_key, budget, language='en-US',
+                    append_to_response='credits,external_ids,translations')
+
+
+_genre_names, _genre_lock = None, threading.Lock()
+
+
+def genre_names(api_key, budget):
+    """TMDB-genrenummers → Nederlandse namen (één keer per run opgehaald)."""
+    global _genre_names
+    with _genre_lock:
+        if _genre_names is None:
+            data = tmdb_get('/genre/movie/list', api_key, budget, language='nl') or {}
+            _genre_names = {g['id']: g['name'] for g in data.get('genres', [])}
+    return _genre_names
+
+
+def dutch_overview(details):
+    for t in (details.get('translations') or {}).get('translations', []):
+        if t.get('iso_639_1') == 'nl' and (t.get('data') or {}).get('overview'):
+            return t['data']['overview']
+    return ''
 
 
 def search_by_title(r, api_key, budget):
@@ -408,7 +446,8 @@ def search_by_title(r, api_key, budget):
         for lang in ('nl-NL', 'en-US'):
             data = tmdb_get('/search/movie', api_key, budget, query=t, language=lang) or {}
             for hit in data.get('results') or []:
-                if hit['id'] not in found and title_ok(hit, r['title']) and year_ok(hit, r['filmYear']):
+                if hit['id'] not in found and title_ok(hit, r['title']) \
+                        and year_ok(hit, r['filmYear'], YEAR_SLACK_SAME_DIRECTOR):
                     found[hit['id']] = hit
         if found:
             break   # de volledige titel leverde al iets op
@@ -438,25 +477,32 @@ def runtime_ok(r, details, slack=5):
 
 def tmdb_match(r, api_key, budget):
     """Geeft (details van de TMDB-film, 'regie' of 'titel') of (None, None)."""
-    hits = search_by_title(r, api_key, budget)[:TMDB_MAX_CANDIDATES]
+    hits = search_by_title(r, api_key, budget)[:TMDB_MAX_CANDIDATES + 2]
     checked = []
     for hit in hits:
         d = tmdb_details(hit['id'], api_key, budget)
         if not d:
             continue
-        if director_match(r, d):
+        if year_ok(hit, r['filmYear']):
+            if director_match(r, d, lenient=True):   # titel en jaar kloppen al
+                return d, 'regie'
+            checked.append(d)
+        elif director_match(r, d):   # festivaljaar vs. releasejaar: dan streng op regisseur
             return d, 'regie'
-        checked.append(d)
 
     if r.get('director'):
         tried = {d['id'] for d in checked}
         films = [f for f in search_by_director(r, api_key, budget) if f['id'] not in tried]
-        # Titel klopt ook: zeker. Anders alleen als het de enige film van dat jaar is
-        films.sort(key=lambda f: (not title_ok(f, r['title']), year_of(f) != r['filmYear']))
+        films.sort(key=lambda f: (not title_ok(f, r['title'], loose=True), year_of(f) != r['filmYear']))
         for f in films[:3]:
+            # Zonder (deels) overeenkomende titel alleen als het de enige film van
+            # de regisseur in die jaren is én de speelduur bekend is en klopt
+            if not title_ok(f, r['title'], loose=True) and len(films) > 1:
+                continue
             d = tmdb_details(f['id'], api_key, budget)
-            if d and director_match(r, d) and (title_ok(f, r['title']) or len(films) == 1
-                                               or runtime_ok(r, d, slack=2)):
+            if d and director_match(r, d) and (
+                    title_ok(f, r['title'], loose=True)
+                    or (r.get('runtime') and d.get('runtime') and runtime_ok(r, d, slack=3))):
                 return d, 'regie'
 
     # Geen regisseur om te vergelijken: alleen als er niets tegenspreekt
@@ -478,10 +524,10 @@ def tmdb_apply(r, details, via, api_key, budget):
         return
     r['tmdbId'] = details['id']
     r['imdbId'] = (details.get('external_ids') or {}).get('imdb_id') or details.get('imdb_id') or None
-    r['genres'] = [g['name'] for g in details.get('genres') or []]
-    overview = details.get('overview') or ''
-    if not overview:   # geen Nederlandse tekst: dan de Engelse
-        overview = (tmdb_get(f"/movie/{details['id']}", api_key, budget, language='en-US') or {}).get('overview') or ''
+    names = genre_names(api_key, budget)
+    r['genres'] = [names.get(g['id'], g['name']) for g in details.get('genres') or []]
+    # Nederlandse beschrijving als die er is, anders de Engelse
+    overview = dutch_overview(details) or details.get('overview') or ''
     if overview:
         r['plot'] = first_sentences(overview)
     if via != 'regie':
@@ -514,14 +560,23 @@ def tmdb_one(r, overrides, api_key, budget):
     return bool(r['tmdbId'])
 
 
+def tmdb_one_patient(r, overrides, api_key, budget, tries=4):
+    """tmdb_one, maar bij een netwerkstoring (wifi weg, DNS) even wachten en
+    opnieuw proberen. De recensie verandert pas als de film gevonden is."""
+    for attempt in range(tries):
+        try:
+            return tmdb_one(r, overrides, api_key, budget)
+        except (OSError, http.client.HTTPException):
+            if attempt == tries - 1:
+                raise
+            time.sleep(30 * (attempt + 1))
+
+
 def lookup_tmdb(reviews, api_key, rematch=False):
     overrides = load_overrides()
-    if rematch:
-        for r in reviews:
-            if r['id'] not in overrides:
-                reset_match(r)
     today = date.today()
-    todo = [r for r in reviews if tmdb_due(r, overrides, today)]   # nieuwste eerst
+    # Bij --rematch alles opnieuw; de oude koppeling blijft staan tot de nieuwe er is
+    todo = list(reviews) if rematch else [r for r in reviews if tmdb_due(r, overrides, today)]
     budget = Budget(None if rematch else TMDB_BUDGET)
     print(f'TMDB: {len(todo)} films te koppelen'
           + ('' if rematch else f' (budget {TMDB_BUDGET} requests)'))
@@ -529,16 +584,16 @@ def lookup_tmdb(reviews, api_key, rematch=False):
     try:
         if rematch:
             with ThreadPoolExecutor(REMATCH_WORKERS) as ex:
-                for ok in ex.map(lambda r: tmdb_one(r, overrides, api_key, budget), todo):
+                for ok in ex.map(lambda r: tmdb_one_patient(r, overrides, api_key, budget), todo):
                     done += 1
                     found += ok
                     if done % 500 == 0:
                         print(f'  {done}/{len(todo)} ({found} gevonden, {budget.used} requests)', flush=True)
-        else:
+        else:   # nieuwste eerst
             for r in todo:
                 if budget.used + 20 > budget.limit:
                     break
-                found += tmdb_one(r, overrides, api_key, budget)
+                found += tmdb_one_patient(r, overrides, api_key, budget)
                 done += 1
     except TmdbStop as e:
         print(f'TMDB: gestopt — {e}')

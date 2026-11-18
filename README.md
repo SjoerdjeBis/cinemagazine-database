@@ -9,9 +9,10 @@ Live: https://sjoerdjebis.github.io/cinemagazine-database/
   Na de eerste volledige run vraagt hij alleen nieuwe recensies op: hij stopt bij de eerste pagina met een bekende recensie.
 - Met `--tmdb` koppelt hij elke recensie aan een film op [TMDB](https://www.themoviedb.org) (max. 3000 requests per
   run). Zoeken gaat op titel (ook de losse delen van "NL titel – originele titel"), met het jaar max. 1 ernaast.
-  Elke treffer wordt gecontroleerd met de regisseur uit de vaste kopregel van de recensie ("Regie: … | 95 minuten | …").
-  Klopt de regisseur bij geen enkele treffer, dan zoekt hij via de films die die regisseur maakte; zo worden ook films
-  gevonden die op TMDB een heel andere titel hebben. Zonder overeenkomende regisseur koppelt hij alleen als niets
+  Elke treffer wordt gecontroleerd met de regisseur uit de vaste kopregel van de recensie ("Regie: … | 95 minuten | …"),
+  soepel op spelling (Ji-Woon Kim = Kim Jee-woon). Klopt de regisseur exact, dan mag het jaar tot 3 jaar afwijken
+  (festivaljaar vs. releasejaar). Klopt de regisseur bij geen enkele treffer, dan zoekt hij via de films die die
+  regisseur maakte; zo worden ook films gevonden die op TMDB een andere titel hebben (Piranha → Piranha 3D). Zonder overeenkomende regisseur koppelt hij alleen als niets
   tegenspreekt (veld `via: "titel"`); liever geen koppeling dan een verkeerde. Van de gekozen film komen in één
   request het IMDb-nummer, de genres en een beschrijving van twee zinnen (Nederlands als die er is, anders Engels).
   Niet gevonden films uit recensies van het afgelopen jaar worden elke 30 dagen opnieuw geprobeerd.
